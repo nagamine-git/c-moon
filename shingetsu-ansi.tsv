@@ -2,8 +2,8 @@
 # ★=d (shift_state=1), ☆=k (shift_state=2)
 
 # シフト 
-d	☆
-k	★
+d	★
+k	☆
 
 # No Shift (ベース)
 q	ほ
