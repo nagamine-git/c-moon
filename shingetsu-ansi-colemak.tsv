@@ -1,6 +1,10 @@
 # 新月配列 v0.5 Colemak ANSI用 hazkey ローマ字テーブル
-# ★=d→g (shift_state=1), ☆=k→n (shift_state=2)
+# ★=d→s (shift_state=1), ☆=k→e (shift_state=2)
 # Colemak: qwfpg jluy; arstd hneio zxcvb km,./
+
+# シフト 
+s	☆
+e	★
 
 # No Shift (ベース) - Colemakキー位置
 q	ほ

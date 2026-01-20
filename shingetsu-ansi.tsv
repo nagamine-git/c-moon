@@ -1,6 +1,10 @@
 # 新月配列 v0.5 QWERTY ANSI用 hazkey ローマ字テーブル
 # ★=d (shift_state=1), ☆=k (shift_state=2)
 
+# シフト 
+d	☆
+k	★
+
 # No Shift (ベース)
 q	ほ
 w	ひ
