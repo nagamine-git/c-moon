@@ -20,11 +20,18 @@ rand_chacha = "0.3"
 # Parallel processing
 rayon = "1.8"
 
-# Progress indication (optional)
+# Progress indication
 indicatif = "0.17"
 
 # CPU core detection
 num_cpus = "1.16"
+
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# TTY detection
+atty = "0.2"
 
 [profile.release]
 lto = true

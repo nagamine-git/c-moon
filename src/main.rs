@@ -6,8 +6,10 @@ mod corpus;
 mod evaluation;
 mod ga;
 mod layout;
+mod tui;
 
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -69,6 +71,10 @@ struct Args {
     /// 出力ファイルパス
     #[arg(short, long, default_value = "best_layout.json")]
     output: PathBuf,
+
+    /// TUIモード（リアルタイム可視化）
+    #[arg(long, default_value_t = false)]
+    tui: bool,
 
     // ========================================
     // 評価重みオプション
@@ -181,9 +187,16 @@ fn main() {
 
     if args.multi_run > 0 {
         // マルチラン実行
-        run_multi(&corpus, config, weights, args.multi_run, &args.output);
+        if args.tui && atty::is(atty::Stream::Stdout) {
+            run_multi_with_tui(&corpus, config, weights, args.multi_run, &args.output);
+        } else {
+            run_multi(&corpus, config, weights, args.multi_run, &args.output);
+        }
+    } else if args.tui && atty::is(atty::Stream::Stdout) {
+        // TUIモード（単一実行）
+        run_with_tui(&corpus, config, weights, &args.output);
     } else {
-        // 単一実行
+        // 通常実行（プログレスバー）
         run_single(&corpus, config, weights, &args.output);
     }
 }
@@ -219,7 +232,7 @@ fn load_corpus(args: &Args) -> CorpusStats {
     }
 }
 
-/// 単一実行
+/// 単一実行（プログレスバー）
 fn run_single(corpus: &CorpusStats, config: GaConfig, weights: EvaluationWeights, output: &PathBuf) {
     let mut ga = GeneticAlgorithm::with_weights(corpus.clone(), config.clone(), weights.clone());
 
@@ -251,7 +264,43 @@ fn run_single(corpus: &CorpusStats, config: GaConfig, weights: EvaluationWeights
     save_layout(&result.best_layout, output);
 }
 
-/// マルチラン実行
+/// TUIモードで実行
+fn run_with_tui(corpus: &CorpusStats, config: GaConfig, weights: EvaluationWeights, output: &PathBuf) {
+    use crate::tui::{run_tui_thread, TuiState};
+
+    let state = Arc::new(Mutex::new(TuiState::new(config.generations)));
+    let tui_state = Arc::clone(&state);
+    
+    // TUIスレッド開始
+    let tui_handle = run_tui_thread(tui_state);
+
+    let mut ga = GeneticAlgorithm::with_weights(corpus.clone(), config.clone(), weights.clone());
+
+    let result = ga.run_with_callback(|gen, fitness, layout| {
+        let mut s = state.lock().unwrap();
+        if !s.running {
+            return;
+        }
+        s.update(gen, fitness, layout);
+    });
+
+    // TUI終了
+    {
+        let mut s = state.lock().unwrap();
+        s.running = false;
+    }
+    let _ = tui_handle.join();
+
+    println!("\n最適化完了!");
+    println!("最良フィットネス: {:.4}", result.best_fitness);
+    println!("\n最良配列:");
+    println!("{}", result.best_layout.format());
+
+    print_scores(&result.best_layout, &weights);
+    save_layout(&result.best_layout, output);
+}
+
+/// マルチラン実行（プログレスバー）
 fn run_multi(
     corpus: &CorpusStats,
     config: GaConfig,
@@ -273,10 +322,79 @@ fn run_multi(
     let results = ga::run_multi(corpus.clone(), config, weights.clone(), actual_runs);
     pb.finish();
 
-    let (mean, stddev, min, max, best) = ga::summarize_results(&results);
+    print_multi_results(&results, &weights, output);
+}
+
+/// マルチラン実行（TUI付き）
+fn run_multi_with_tui(
+    corpus: &CorpusStats,
+    config: GaConfig,
+    weights: EvaluationWeights,
+    num_runs: usize,
+    output: &PathBuf,
+) {
+    use crate::tui::{run_tui_thread, TuiState};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let actual_runs = num_runs.min(num_cpus::get());
+    
+    // 共有状態
+    let state = Arc::new(Mutex::new(TuiState::new(config.generations)));
+    let completed_runs = Arc::new(AtomicUsize::new(0));
+    
+    // TUIスレッド開始
+    let tui_state = Arc::clone(&state);
+    let tui_handle = run_tui_thread(tui_state);
+
+    // 並列実行（各ランで最良をTUIに報告）
+    let results: Vec<_> = (0..actual_runs)
+        .into_iter()
+        .map(|_| {
+            let seed: u64 = rand::random();
+            let mut run_config = config.clone();
+            run_config.seed = seed;
+            
+            let state = Arc::clone(&state);
+            let completed = Arc::clone(&completed_runs);
+            
+            let mut ga = ga::GeneticAlgorithm::with_weights(
+                corpus.clone(),
+                run_config.clone(),
+                weights.clone(),
+            );
+            
+            let result = ga.run_with_callback(|gen, fitness, layout| {
+                let mut s = state.lock().unwrap();
+                if !s.running {
+                    return;
+                }
+                // 全ランで最良のものだけ更新
+                if fitness > s.best_fitness {
+                    s.update(gen, fitness, layout);
+                }
+            });
+            
+            completed.fetch_add(1, Ordering::SeqCst);
+            result
+        })
+        .collect();
+
+    // TUI終了
+    {
+        let mut s = state.lock().unwrap();
+        s.running = false;
+    }
+    let _ = tui_handle.join();
+
+    print_multi_results(&results, &weights, output);
+}
+
+/// マルチラン結果を表示
+fn print_multi_results(results: &[ga::GaResult], weights: &EvaluationWeights, output: &PathBuf) {
+    let (mean, stddev, min, max, best) = ga::summarize_results(results);
 
     println!("\n=== マルチラン結果 ===");
-    println!("実行回数: {}", actual_runs);
+    println!("実行回数: {}", results.len());
     println!("平均フィットネス: {:.4}", mean);
     println!("標準偏差: {:.4}", stddev);
     println!("最小: {:.4}", min);
@@ -285,7 +403,7 @@ fn run_multi(
     println!("\n最良配列:");
     println!("{}", best.best_layout.format());
 
-    print_scores(&best.best_layout, &weights);
+    print_scores(&best.best_layout, weights);
     save_layout(&best.best_layout, output);
 }
 

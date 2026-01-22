@@ -8,7 +8,7 @@ use rayon::prelude::*;
 
 use crate::corpus::CorpusStats;
 use crate::evaluation::{EvaluationWeights, Evaluator};
-use crate::layout::{Layout, NUM_LAYERS, ROWS, COLS};
+use crate::layout::{Layout, NUM_LAYERS, ROWS, COLS, HIRAGANA_FREQ_DEFAULT};
 
 /// 遺伝的アルゴリズムの設定
 #[derive(Debug, Clone)]
@@ -55,26 +55,42 @@ pub struct GeneticAlgorithm {
     config: GaConfig,
     evaluator: Evaluator,
     rng: ChaCha8Rng,
+    /// コーパスから取得したひらがな頻度順リスト
+    hiragana_chars: Vec<char>,
 }
 
 impl GeneticAlgorithm {
     /// 新しいGAインスタンスを作成
     pub fn new(corpus: CorpusStats, config: GaConfig) -> Self {
         let rng = ChaCha8Rng::seed_from_u64(config.seed);
+        // コーパスから頻度順リストを取得、なければデフォルト
+        let hiragana_chars = if corpus.hiragana_by_freq.is_empty() {
+            HIRAGANA_FREQ_DEFAULT.to_vec()
+        } else {
+            corpus.hiragana_by_freq.clone()
+        };
         Self {
             evaluator: Evaluator::new(corpus),
             config,
             rng,
+            hiragana_chars,
         }
     }
 
     /// カスタム重みでGAインスタンスを作成
     pub fn with_weights(corpus: CorpusStats, config: GaConfig, weights: EvaluationWeights) -> Self {
         let rng = ChaCha8Rng::seed_from_u64(config.seed);
+        // コーパスから頻度順リストを取得、なければデフォルト
+        let hiragana_chars = if corpus.hiragana_by_freq.is_empty() {
+            HIRAGANA_FREQ_DEFAULT.to_vec()
+        } else {
+            corpus.hiragana_by_freq.clone()
+        };
         Self {
             evaluator: Evaluator::with_weights(corpus, weights),
             config,
             rng,
+            hiragana_chars,
         }
     }
 
@@ -90,10 +106,10 @@ impl GeneticAlgorithm {
     where
         F: FnMut(usize, f64, &Layout),
     {
-        // 初期集団の生成
+        // 初期集団の生成（コーパスから取得した頻度順リストを使用）
         let mut population: Vec<Layout> = (0..self.config.population_size)
             .map(|_| {
-                let mut layout = Layout::random(&mut self.rng);
+                let mut layout = Layout::random_with_chars(&mut self.rng, &self.hiragana_chars);
                 self.evaluator.evaluate(&mut layout);
                 layout
             })
@@ -258,8 +274,8 @@ impl GeneticAlgorithm {
             }
         }
 
-        // 欠落文字を検出
-        for &c in crate::layout::HIRAGANA_FREQ {
+        // 欠落文字を検出（コーパスから取得した頻度順リストを使用）
+        for &c in &self.hiragana_chars {
             if !seen.contains(&c) {
                 missing.push(c);
             }

@@ -18,6 +18,13 @@ pub struct CorpusStats {
     pub trigram_freq: HashMap<(char, char, char), usize>,
     /// 4-gram（連続4文字）頻度
     pub fourgram_freq: HashMap<(char, char, char, char), usize>,
+    /// ひらがな文字の頻度順リスト（1gramから生成）
+    pub hiragana_by_freq: Vec<char>,
+}
+
+/// ひらがな文字かどうかを判定
+fn is_hiragana(c: char) -> bool {
+    matches!(c, 'ぁ'..='ん' | 'ー' | 'ゔ')
 }
 
 impl CorpusStats {
@@ -28,6 +35,7 @@ impl CorpusStats {
             bigram_freq: HashMap::new(),
             trigram_freq: HashMap::new(),
             fourgram_freq: HashMap::new(),
+            hiragana_by_freq: Vec::new(),
         }
     }
 
@@ -39,6 +47,7 @@ impl CorpusStats {
     /// - n: N-gramのN値
     /// 
     /// `〓` は改行を表すノイズとして除外される。
+    /// ひらがな文字は頻度順にソートして `hiragana_by_freq` に格納される。
     pub fn from_ngram_files(
         gram1_path: Option<&Path>,
         gram2_path: Option<&Path>,
@@ -46,6 +55,9 @@ impl CorpusStats {
         gram4_path: Option<&Path>,
     ) -> Result<Self, std::io::Error> {
         let mut stats = Self::new();
+        
+        // 1-gramと頻度順ひらがなリストを同時に構築
+        let mut hiragana_freq: Vec<(char, usize)> = Vec::new();
 
         // 1-gram
         if let Some(path) = gram1_path {
@@ -56,11 +68,21 @@ impl CorpusStats {
                 if let Some((count, chars)) = Self::parse_ngram_line(&line) {
                     let c: Vec<char> = chars.chars().collect();
                     if c.len() == 1 && c[0] != '〓' {
-                        stats.char_freq.insert(c[0], count);
+                        let ch = c[0];
+                        stats.char_freq.insert(ch, count);
+                        
+                        // ひらがなのみを頻度リストに追加
+                        if is_hiragana(ch) && ch != '、' && ch != '。' {
+                            hiragana_freq.push((ch, count));
+                        }
                     }
                 }
             }
         }
+        
+        // 頻度順でソート（降順）
+        hiragana_freq.sort_by(|a, b| b.1.cmp(&a.1));
+        stats.hiragana_by_freq = hiragana_freq.into_iter().map(|(c, _)| c).collect();
 
         // 2-gram
         if let Some(path) = gram2_path {
@@ -150,6 +172,16 @@ impl CorpusStats {
             *stats.fourgram_freq.entry(key).or_insert(0) += 1;
         }
 
+        // ひらがな頻度順リストを構築
+        let mut hiragana_freq: Vec<(char, usize)> = stats
+            .char_freq
+            .iter()
+            .filter(|(&c, _)| is_hiragana(c) && c != '、' && c != '。')
+            .map(|(&c, &count)| (c, count))
+            .collect();
+        hiragana_freq.sort_by(|a, b| b.1.cmp(&a.1));
+        stats.hiragana_by_freq = hiragana_freq.into_iter().map(|(c, _)| c).collect();
+
         stats
     }
 
@@ -177,13 +209,19 @@ impl CorpusStats {
     /// 統計情報のサマリーを表示
     pub fn summary(&self) -> String {
         format!(
-            "Corpus Stats:\n  1-gram types: {}\n  2-gram types: {}\n  3-gram types: {}\n  4-gram types: {}\n  Total chars: {}",
+            "Corpus Stats:\n  1-gram types: {}\n  2-gram types: {}\n  3-gram types: {}\n  4-gram types: {}\n  Total chars: {}\n  Hiragana chars: {}",
             self.char_freq.len(),
             self.bigram_freq.len(),
             self.trigram_freq.len(),
             self.fourgram_freq.len(),
-            self.total_chars()
+            self.total_chars(),
+            self.hiragana_by_freq.len()
         )
+    }
+    
+    /// ひらがな頻度順リストを取得（句読点除く）
+    pub fn get_hiragana_by_freq(&self) -> &[char] {
+        &self.hiragana_by_freq
     }
 }
 

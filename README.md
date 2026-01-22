@@ -23,6 +23,22 @@ cargo build --release
 ./target/release/kana_layout_optimizer -c corpus.txt -p 500 -g 1000
 ```
 
+### TUIモード（リアルタイム可視化）
+
+```bash
+./target/release/kana_layout_optimizer \
+  --gram1 1gram.txt --gram2 2gram.txt \
+  --gram3 3gram.txt --gram4 4gram.txt \
+  -p 500 -g 500 --tui
+```
+
+TUIでは以下を表示:
+- プログレスバー（世代/最大世代）
+- フィットネス履歴グラフ
+- 現在の最良配列（全3レイヤー）
+
+`q` または `Esc` で中断可能。
+
 ### マルチラン実行
 
 ```bash
@@ -49,6 +65,7 @@ cargo build --release
 | `-e, --elite` | 10 | エリート保持数 |
 | `-s, --seed` | 42 | 乱数シード |
 | `--multi-run` | 0 | 並列実行数（0=単一実行） |
+| `--tui` | false | TUIモード（リアルタイム可視化） |
 | `-o, --output` | `best_layout.json` | 出力ファイル |
 
 ### 評価重みオプション
