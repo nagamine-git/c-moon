@@ -25,6 +25,7 @@ pub struct EvaluationWeights {
     pub alternating: f64,
     pub single_key: f64,
     pub colemak_similarity: f64,
+    pub position_cost: f64,  // 位置別コスト評価（ベースコスト×シフト係数）
 
     // Bonus Metrics（加算）
     pub redirect_low: f64,
@@ -47,6 +48,7 @@ impl Default for EvaluationWeights {
             alternating: 0.8,
             single_key: 0.7,
             colemak_similarity: 0.6,
+            position_cost: 1.2,  // 位置別コスト（高頻度文字を低コスト位置に）
 
             // Bonus（加算）
             redirect_low: 5.0,
@@ -111,9 +113,11 @@ impl Evaluator {
         let alternating_norm = (scores.alternating / 100.0).max(0.01);
         let single_key_norm = (scores.single_key / 100.0).max(0.01);
         let colemak_norm = (scores.colemak_similarity / 100.0).max(0.01);
+        let position_cost_norm = (scores.position_cost / 100.0).max(0.01);
 
         let total_weight = w.same_finger + w.row_skip + w.home_position
-            + w.total_keystrokes + w.alternating + w.single_key + w.colemak_similarity;
+            + w.total_keystrokes + w.alternating + w.single_key + w.colemak_similarity
+            + w.position_cost;
 
         let core_product = same_finger_norm.powf(w.same_finger)
             * row_skip_norm.powf(w.row_skip)
@@ -121,7 +125,8 @@ impl Evaluator {
             * total_keystrokes_norm.powf(w.total_keystrokes)
             * alternating_norm.powf(w.alternating)
             * single_key_norm.powf(w.single_key)
-            * colemak_norm.powf(w.colemak_similarity);
+            * colemak_norm.powf(w.colemak_similarity)
+            * position_cost_norm.powf(w.position_cost);
 
         let core_multiplier = core_product.powf(1.0 / total_weight) * 100.0;
 
@@ -237,6 +242,7 @@ impl Evaluator {
             } else { 0.0 },
 
             colemak_similarity: self.calc_colemak_similarity(layout),
+            position_cost: self.calc_position_cost(layout, &char_map),
             tsuki_similarity: self.calc_tsuki_similarity(layout),
             memorability: self.calc_memorability(layout),
 
@@ -324,6 +330,71 @@ impl Evaluator {
         )
     }
 
+    /// 位置別コスト評価（ベースコスト×シフト係数）
+    /// 高頻度文字を低コスト位置に配置できているかを評価
+    fn calc_position_cost(&self, _layout: &Layout, char_map: &HashMap<char, KeyPos>) -> f64 {
+        // ベースコスト（No Layer）
+        const BASE_COST: [[f64; COLS]; ROWS] = [
+            [4.0, 2.0, 2.0, 2.0, 3.0,  4.0, 2.0, 2.0, 2.0, 4.0],  // 上段
+            [2.0, 1.0, 1.0, 1.0, 2.0,  2.0, 1.0, 1.0, 1.0, 2.0],  // 中段
+            [4.0, 3.0, 2.0, 2.0, 4.0,  3.0, 2.0, 2.0, 2.0, 4.0],  // 下段
+        ];
+        
+        let mut total_cost = 0.0;
+        let mut total_freq = 0.0;
+        
+        for (&c, &count) in &self.corpus.char_freq {
+            if let Some(&pos) = char_map.get(&c) {
+                let base = BASE_COST[pos.row][pos.col];
+                let mut multiplier = 1.0;
+                
+                if pos.layer == 1 {
+                    // A Layer (☆シフト - eキー: R2-3 = row:1, col:7)
+                    multiplier = 3.0;
+                    
+                    // Out: 右手小指側（col >= 8）
+                    if pos.col >= 8 {
+                        multiplier += 10.0;
+                    }
+                    
+                    // Ver: eと同じ指（中指）で上下
+                    if pos.col == 7 && pos.row != 1 {
+                        multiplier += 31.0;
+                    }
+                } else if pos.layer == 2 {
+                    // B Layer (★シフト - sキー: L2-3 = row:1, col:2)
+                    multiplier = 3.0;
+                    
+                    // Out: 左手小指側（col <= 1）
+                    if pos.col <= 1 {
+                        multiplier += 9.0;
+                    }
+                    
+                    // Ver: sと同じ指（中指）で上下
+                    if pos.col == 2 && pos.row != 1 {
+                        multiplier += 29.0;
+                    }
+                }
+                
+                let cost = base * multiplier;
+                total_cost += cost * count as f64;
+                total_freq += count as f64;
+            }
+        }
+        
+        if total_freq == 0.0 {
+            return 0.0;
+        }
+        
+        // 平均コストを計算（低いほど良い）
+        let avg_cost = total_cost / total_freq;
+        
+        // 最大コスト想定: 4.0 * (3.0 + 10.0 + 31.0) = 176.0
+        // スコア化（低コスト=高スコア）
+        let normalized = 1.0 - (avg_cost / 176.0).min(1.0);
+        normalized * 100.0
+    }
+    
     /// Colemak類似度を計算
     /// - Layer 0: 100%の重み
     /// - Layer 1, 2: 80%の重み

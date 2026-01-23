@@ -145,6 +145,8 @@ pub struct EvaluationScores {
     pub single_key: f64,
     /// Colemak類似度
     pub colemak_similarity: f64,
+    /// 位置別コスト（ベースコスト×シフト係数）
+    pub position_cost: f64,
     /// 月配列類似度
     pub tsuki_similarity: f64,
     /// 覚えやすさ
@@ -184,9 +186,11 @@ impl Layout {
     pub fn random_with_chars(rng: &mut ChaCha8Rng, hiragana_chars: &[char]) -> Self {
         let mut chars: Vec<char> = hiragana_chars.to_vec();
         
-        // 90ポジション中、6つは固定（シフトキー2×3層 + 句読点2）
-        // 実際に配置可能: 90 - 6(シフトキー) - 2(句読点) = 82ポジション
-        let total_positions = KEYS_PER_LAYER * NUM_LAYERS - 8;
+        // 90ポジション中、固定位置：
+        // Layer 0: ★☆（2個）+、。（2個）
+        // Layer 2: ;・（2個）
+        // 実際に配置可能: 90 - 6 = 84ポジション
+        let total_positions = KEYS_PER_LAYER * NUM_LAYERS - 6;
         while chars.len() < total_positions {
             chars.push('　');
         }
@@ -198,19 +202,15 @@ impl Layout {
         let mut layers = [[['　'; COLS]; ROWS]; NUM_LAYERS];
         
         // 固定文字の配置
-        // Layer 0（無シフト）
-        layers[0][1][2] = '☆';  // dキー: ☆シフト
-        layers[0][1][7] = '★';  // kキー: ★シフト
+        // Layer 0: シフトキーと句読点
+        layers[0][1][2] = '☆';  // sキー: ☆シフト
+        layers[0][1][7] = '★';  // eキー: ★シフト
         layers[0][2][7] = '、';
         layers[0][2][8] = '。';
         
-        // Layer 1（☆シフト）
-        layers[1][1][2] = '☆';
-        layers[1][1][7] = '★';
-        
-        // Layer 2（★シフト）
-        layers[2][1][2] = '☆';
-        layers[2][1][7] = '★';
+        // Layer 2: 記号
+        layers[2][2][7] = '；';  // セミコロン
+        layers[2][2][8] = '・';  // 中黒
         
         // 残りの文字をシャッフルして配置
         let mut char_idx = 0;
@@ -236,12 +236,16 @@ impl Layout {
 
     /// 固定位置かどうかを判定
     pub fn is_fixed_position(layer: usize, row: usize, col: usize) -> bool {
-        // シフトキー位置
-        if row == 1 && (col == 2 || col == 7) {
+        // Layer 0：シフトキー位置（★s, ☆e）
+        if layer == 0 && row == 1 && (col == 2 || col == 7) {
             return true;
         }
-        // Layer 0の句読点
+        // Layer 0：句読点（、。）
         if layer == 0 && row == 2 && (col == 7 || col == 8) {
+            return true;
+        }
+        // Layer 2：記号（;・）
+        if layer == 2 && row == 2 && (col == 7 || col == 8) {
             return true;
         }
         false

@@ -53,7 +53,7 @@ struct Args {
     generations: usize,
 
     /// 突然変異率
-    #[arg(short, long, default_value_t = 0.15)]
+    #[arg(short, long, default_value_t = 0.25)]
     mutation_rate: f64,
 
     /// エリート保持数
@@ -107,6 +107,10 @@ struct Args {
     #[arg(long, default_value_t = 0.6)]
     w_colemak_similarity: f64,
 
+    /// Weight: 位置別コスト（高頻度文字を低コスト位置に）
+    #[arg(long, default_value_t = 1.2)]
+    w_position_cost: f64,
+
     /// Weight: リダイレクト少
     #[arg(long, default_value_t = 5.0)]
     w_redirect_low: f64,
@@ -146,6 +150,7 @@ impl From<&Args> for EvaluationWeights {
             alternating: args.w_alternating,
             single_key: args.w_single_key,
             colemak_similarity: args.w_colemak_similarity,
+            position_cost: args.w_position_cost,
             redirect_low: args.w_redirect_low,
             tsuki_similarity: args.w_tsuki_similarity,
             roll: args.w_roll,
@@ -421,6 +426,7 @@ fn print_scores(layout: &Layout, weights: &EvaluationWeights) {
     println!("  左右交互:       {:.2}% ^{:.2}", s.alternating, w.alternating);
     println!("  単打鍵率:       {:.2}% ^{:.2}", s.single_key, w.single_key);
     println!("  Colemak類似:    {:.2}% ^{:.2}", s.colemak_similarity, w.colemak_similarity);
+    println!("  位置別コスト:   {:.2}% ^{:.2}", s.position_cost, w.position_cost);
 
     println!("\nBonus Metrics (加算):");
     println!("  リダイレクト少: {:.2} x {:.1}", s.redirect_low, w.redirect_low);

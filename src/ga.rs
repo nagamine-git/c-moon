@@ -110,6 +110,7 @@ impl GeneticAlgorithm {
         let mut population: Vec<Layout> = (0..self.config.population_size)
             .map(|_| {
                 let mut layout = Layout::random_with_chars(&mut self.rng, &self.hiragana_chars);
+                self.repair_layout(&mut layout);  // 重複除去
                 self.evaluator.evaluate(&mut layout);
                 layout
             })
@@ -147,6 +148,7 @@ impl GeneticAlgorithm {
                 // 突然変異
                 if self.rng.gen::<f64>() < self.config.mutation_rate {
                     self.mutate(&mut child);
+                    self.repair_layout(&mut child);  // 重複除去
                 }
 
                 // 評価
@@ -168,9 +170,14 @@ impl GeneticAlgorithm {
             callback(gen, best_fitness, &best_layout);
         }
 
+        // 最終結果の重複チェックと再評価
+        self.repair_layout(&mut best_layout);
+        self.evaluator.evaluate(&mut best_layout);
+        let final_fitness = best_layout.fitness;
+
         GaResult {
             best_layout,
-            best_fitness,
+            best_fitness: final_fitness,
             fitness_history,
             final_generation: self.config.generations,
         }
@@ -281,10 +288,11 @@ impl GeneticAlgorithm {
             }
         }
 
-        // 重複位置に欠落文字を配置
+        // 重複位置に欠落文字を配置（足りなければ空白で埋める）
         missing.shuffle(&mut self.rng);
-        for ((layer, row, col), &c) in duplicates.iter().zip(missing.iter()) {
-            layout.layers[*layer][*row][*col] = c;
+        for (i, (layer, row, col)) in duplicates.iter().enumerate() {
+            let replacement = missing.get(i).copied().unwrap_or('　');
+            layout.layers[*layer][*row][*col] = replacement;
         }
     }
 }
