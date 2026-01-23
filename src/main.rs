@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex};
 
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
+use rayon::prelude::*;
 
 use crate::corpus::CorpusStats;
 use crate::evaluation::EvaluationWeights;
@@ -479,7 +480,7 @@ fn run_multi_with_tui(
 
     // 並列実行（各ランで最良をTUIに報告）
     let results: Vec<_> = (0..actual_runs)
-        .into_iter()
+        .into_par_iter()
         .map(|_| {
             let seed: u64 = rand::random();
             let mut run_config = config.clone();
