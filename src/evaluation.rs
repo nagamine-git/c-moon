@@ -40,24 +40,24 @@ pub struct EvaluationWeights {
 impl Default for EvaluationWeights {
     fn default() -> Self {
         Self {
-            // Core（乗算・指数）
-            same_finger: 1.8,
-            row_skip: 1.55,
-            home_position: 1.3,
-            total_keystrokes: 1.05,
-            alternating: 0.8,
-            single_key: 0.7,
-            colemak_similarity: 0.6,
-            position_cost: 1.2,  // 位置別コスト（高頻度文字を低コスト位置に）
+            // Core（乗算・指数）- 科学的重み付け反映（45:25:15:10:5）
+            same_finger: 2.2,        // SFB排除45%（徹底排除）
+            row_skip: 1.55,          // 段飛ばし制限
+            home_position: 1.3,      // ホームポジション維持
+            total_keystrokes: 1.05,  // 総打鍵コスト
+            alternating: 1.1,        // 統計的交互打鍵25%（リズム）
+            single_key: 0.7,         // 単打鍵率
+            colemak_similarity: 0.6, // Colemak類似度
+            position_cost: 1.3,      // 位置別コスト（頻出文字最適配置）
 
             // Bonus（加算）
-            redirect_low: 5.0,
-            tsuki_similarity: 4.0,
-            roll: 5.0,
-            inroll: 5.0,
-            arpeggio: 5.0,
-            memorability: 2.0,
-            shift_balance: 3.0,
+            redirect_low: 5.0,       // リダイレクト制限
+            tsuki_similarity: 4.0,   // 月配列類似度
+            roll: 6.0,               // アルペジオ調和15%（ロール）
+            inroll: 6.0,             // 内向きロール優遇
+            arpeggio: 6.0,           // 片手連打の質
+            memorability: 2.0,       // 覚えやすさ
+            shift_balance: 3.0,      // シフトバランス
         }
     }
 }

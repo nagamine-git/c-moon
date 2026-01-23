@@ -79,8 +79,8 @@ struct Args {
     // ========================================
     // 評価重みオプション
     // ========================================
-    /// Weight: 同指連続率の低さ
-    #[arg(long, default_value_t = 1.8)]
+    /// Weight: 同指連続率の低さ（SFB排除45%）
+    #[arg(long, default_value_t = 2.2)]
     w_same_finger: f64,
 
     /// Weight: 段越えの少なさ
@@ -95,8 +95,8 @@ struct Args {
     #[arg(long, default_value_t = 1.05)]
     w_total_keystrokes: f64,
 
-    /// Weight: 左右交互打鍵率
-    #[arg(long, default_value_t = 0.8)]
+    /// Weight: 左右交互打鍵率（統計的交互打鍵25%）
+    #[arg(long, default_value_t = 1.1)]
     w_alternating: f64,
 
     /// Weight: 単打鍵率
@@ -108,7 +108,7 @@ struct Args {
     w_colemak_similarity: f64,
 
     /// Weight: 位置別コスト（高頻度文字を低コスト位置に）
-    #[arg(long, default_value_t = 1.2)]
+    #[arg(long, default_value_t = 1.3)]
     w_position_cost: f64,
 
     /// Weight: リダイレクト少
@@ -119,16 +119,16 @@ struct Args {
     #[arg(long, default_value_t = 4.0)]
     w_tsuki_similarity: f64,
 
-    /// Weight: ロール率
-    #[arg(long, default_value_t = 5.0)]
+    /// Weight: ロール率（アルペジオ調和15%）
+    #[arg(long, default_value_t = 6.0)]
     w_roll: f64,
 
-    /// Weight: インロール率
-    #[arg(long, default_value_t = 5.0)]
+    /// Weight: インロール率（内向きロール優遇）
+    #[arg(long, default_value_t = 6.0)]
     w_inroll: f64,
 
-    /// Weight: アルペジオ率
-    #[arg(long, default_value_t = 5.0)]
+    /// Weight: アルペジオ率（片手連打の質）
+    #[arg(long, default_value_t = 6.0)]
     w_arpeggio: f64,
 
     /// Weight: 覚えやすさ
