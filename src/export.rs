@@ -109,7 +109,7 @@ pub fn export_all(layout: &Layout, base_name: &str) {
 /// JSON形式でエクスポート（既存形式）
 pub fn export_json(layout: &Layout, path: &Path) {
     let json = serde_json::json!({
-        "name": "GA Optimized Layout",
+        "name": "新月配列 (Shingetsu Layout)",
         "fitness": layout.fitness,
         "scores": layout.scores,
         "layers": {
@@ -299,7 +299,7 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
     }
 
     let json = serde_json::json!({
-        "name": "GA Optimized Layout",
+        "name": "新月配列 (Shingetsu Layout)",
         "remark": "★/☆レイヤー切替方式のかな配列。",
         "keys": keys,
         "conversion": conversion
@@ -317,7 +317,7 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
     let mut lines = Vec::new();
 
     let layout_name = if colemak { "Colemak" } else { "QWERTY" };
-    lines.push(format!("# GA生成配列 {} ANSI用 hazkey ローマ字テーブル", layout_name));
+    lines.push(format!("# 新月配列 (Shingetsu) {} ANSI用 hazkey ローマ字テーブル", layout_name));
 
     // ★と☆のシフトキー位置を特定
     let mut star_key = "d";
@@ -541,7 +541,7 @@ pub fn export_karabiner(layout: &Layout, path: &Path) {
     }
 
     let json = serde_json::json!({
-        "description": "GA生成配列 ☆/★レイヤー切替方式",
+        "description": "新月配列 (Shingetsu Layout) ☆/★レイヤー切替方式",
         "manipulators": manipulators
     });
 
