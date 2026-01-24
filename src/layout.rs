@@ -17,8 +17,8 @@ pub const ROWS: usize = 3;
 /// キーボードの列数
 pub const COLS: usize = 10;
 
-/// レイヤー数（無シフト、☆シフト、★シフト）
-pub const NUM_LAYERS: usize = 3;
+/// レイヤー数（無シフト、☆シフト、★シフト、◎シフト、◆シフト）
+pub const NUM_LAYERS: usize = 5;
 
 /// 1レイヤーあたりのキー数
 pub const KEYS_PER_LAYER: usize = ROWS * COLS;
