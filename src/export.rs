@@ -163,11 +163,13 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
         let l0 = layout.layers[0][0][col];
         let l1 = layout.layers[1][0][col];
         let l2 = layout.layers[2][0][col];
+        let l3 = layout.layers[3][0][col];
+        let l4 = layout.layers[4][0][col];
         let key_id = QWERTY_KEYS[0][col];
         let finger = if col < 5 { col.min(3) } else { 6 + (col - 5).min(3) };
         top_row.push(serde_json::json!({
             "id": key_id,
-            "legend": [l0.to_string(), l1.to_string(), l2.to_string()],
+            "legend": [l0.to_string(), l1.to_string(), l2.to_string(), l3.to_string(), l4.to_string()],
             "size": 1,
             "finger": finger
         }));
@@ -183,12 +185,14 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
         let l0 = layout.layers[0][1][col];
         let l1 = layout.layers[1][1][col];
         let l2 = layout.layers[2][1][col];
+        let l3 = layout.layers[3][1][col];
+        let l4 = layout.layers[4][1][col];
         let key_id = QWERTY_KEYS[1][col];
         let finger = if col < 5 { col.min(3) } else { 6 + (col - 5).min(3) };
         let is_home = col >= 3 && col <= 6 || col == 0 || col == 9;
         let mut key_obj = serde_json::json!({
             "id": key_id,
-            "legend": [l0.to_string(), l1.to_string(), l2.to_string()],
+            "legend": [l0.to_string(), l1.to_string(), l2.to_string(), l3.to_string(), l4.to_string()],
             "size": 1,
             "finger": finger
         });
@@ -207,11 +211,13 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
         let l0 = layout.layers[0][2][col];
         let l1 = layout.layers[1][2][col];
         let l2 = layout.layers[2][2][col];
+        let l3 = layout.layers[3][2][col];
+        let l4 = layout.layers[4][2][col];
         let key_id = QWERTY_KEYS[2][col];
         let finger = if col < 5 { col.min(3) } else { 6 + (col - 5).min(3) };
         bot_row.push(serde_json::json!({
             "id": key_id,
-            "legend": [l0.to_string(), l1.to_string(), l2.to_string()],
+            "legend": [l0.to_string(), l1.to_string(), l2.to_string(), l3.to_string(), l4.to_string()],
             "size": 1,
             "finger": finger
         }));
@@ -234,9 +240,11 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
     // conversionセクションを構築
     let mut conversion = serde_json::Map::new();
 
-    // ★と☆のシフトキー位置を特定
-    let mut star_key = "d";  // ★のデフォルト
-    let mut circle_key = "k"; // ☆のデフォルト
+    // シフトキー位置を特定
+    let mut star_key = "d";  // ★のデフォルト（左中指）
+    let mut circle_key = "k"; // ☆のデフォルト（右中指）
+    let mut double_circle_key = "l"; // ◎のデフォルト（右薬指）
+    let mut diamond_key = "s"; // ◆のデフォルト（左薬指）
 
     for row in 0..ROWS {
         for col in 0..COLS {
@@ -246,6 +254,12 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
             if layout.layers[0][row][col] == '☆' {
                 circle_key = QWERTY_KEYS[row][col];
             }
+            if layout.layers[0][row][col] == '◎' {
+                double_circle_key = QWERTY_KEYS[row][col];
+            }
+            if layout.layers[0][row][col] == '◆' {
+                diamond_key = QWERTY_KEYS[row][col];
+            }
         }
     }
 
@@ -253,7 +267,7 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[0][row][col];
-            if kana == '★' || kana == '☆' || kana == '　' || kana == '\0' {
+            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' {
                 continue;
             }
             let key = QWERTY_KEYS[row][col];
@@ -270,7 +284,7 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[1][row][col];
-            if kana == '★' || kana == '☆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
                 continue;
             }
             let key = QWERTY_KEYS[row][col];
@@ -290,7 +304,7 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[2][row][col];
-            if kana == '★' || kana == '☆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
                 continue;
             }
             let key = QWERTY_KEYS[row][col];
@@ -306,9 +320,49 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
         }
     }
 
+    // Layer 3 (◎ shift)
+    for row in 0..ROWS {
+        for col in 0..COLS {
+            let kana = layout.layers[3][row][col];
+            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+                continue;
+            }
+            let key = QWERTY_KEYS[row][col];
+            if !conversion.contains_key(&kana.to_string()) {
+                conversion.insert(kana.to_string(), serde_json::json!({
+                    "keys": [key],
+                    "shift": [double_circle_key],
+                    "type": "sim",
+                    "ime": true,
+                    "renzsft": false
+                }));
+            }
+        }
+    }
+
+    // Layer 4 (◆ shift)
+    for row in 0..ROWS {
+        for col in 0..COLS {
+            let kana = layout.layers[4][row][col];
+            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+                continue;
+            }
+            let key = QWERTY_KEYS[row][col];
+            if !conversion.contains_key(&kana.to_string()) {
+                conversion.insert(kana.to_string(), serde_json::json!({
+                    "keys": [key],
+                    "shift": [diamond_key],
+                    "type": "sim",
+                    "ime": true,
+                    "renzsft": false
+                }));
+            }
+        }
+    }
+
     let json = serde_json::json!({
-        "name": "新月配列 (Shingetsu Layout)",
-        "remark": "★/☆レイヤー切替方式のかな配列。",
+        "name": "新月配列 v2.0 (Shingetsu Layout)",
+        "remark": "★/☆/◎/◆ 4レイヤー切替方式のかな配列。",
         "keys": keys,
         "conversion": conversion
     });
@@ -325,11 +379,13 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
     let mut lines = Vec::new();
 
     let layout_name = if colemak { "Colemak" } else { "QWERTY" };
-    lines.push(format!("# 新月配列 (Shingetsu) {} ANSI用 hazkey ローマ字テーブル", layout_name));
+    lines.push(format!("# 新月配列 v2.0 (Shingetsu) {} ANSI用 hazkey ローマ字テーブル", layout_name));
 
-    // ★と☆のシフトキー位置を特定
+    // シフトキー位置を特定
     let mut star_key = "d";
     let mut circle_key = "k";
+    let mut double_circle_key = "l";
+    let mut diamond_key = "s";
 
     for row in 0..ROWS {
         for col in 0..COLS {
@@ -339,16 +395,25 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
             if layout.layers[0][row][col] == '☆' {
                 circle_key = keys[row][col];
             }
+            if layout.layers[0][row][col] == '◎' {
+                double_circle_key = keys[row][col];
+            }
+            if layout.layers[0][row][col] == '◆' {
+                diamond_key = keys[row][col];
+            }
         }
     }
 
-    lines.push(format!("# ★={} (shift_state=1), ☆={} (shift_state=2)", star_key, circle_key));
+    lines.push(format!("# ★={} (Layer 2), ☆={} (Layer 1), ◎={} (Layer 3), ◆={} (Layer 4)",
+        star_key, circle_key, double_circle_key, diamond_key));
     lines.push("".to_string());
 
     // シフトキー定義
     lines.push("# シフト".to_string());
     lines.push(format!("{}\t★", star_key));
     lines.push(format!("{}\t☆", circle_key));
+    lines.push(format!("{}\t◎", double_circle_key));
+    lines.push(format!("{}\t◆", diamond_key));
     lines.push("".to_string());
 
     // No Shift
@@ -356,7 +421,7 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[0][row][col];
-            if kana == '★' || kana == '☆' || kana == '　' || kana == '\0' {
+            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' {
                 continue;
             }
             let key = keys[row][col];
@@ -370,7 +435,7 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[1][row][col];
-            if kana == '★' || kana == '☆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
                 continue;
             }
             let key = keys[row][col];
@@ -384,11 +449,39 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[2][row][col];
-            if kana == '★' || kana == '☆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
                 continue;
             }
             let key = keys[row][col];
             lines.push(format!("★{}\t{}", key, kana));
+        }
+    }
+    lines.push("".to_string());
+
+    // ◎シフト (Layer 3)
+    lines.push(format!("# ◎シフト ({}前置)", double_circle_key));
+    for row in 0..ROWS {
+        for col in 0..COLS {
+            let kana = layout.layers[3][row][col];
+            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+                continue;
+            }
+            let key = keys[row][col];
+            lines.push(format!("◎{}\t{}", key, kana));
+        }
+    }
+    lines.push("".to_string());
+
+    // ◆シフト (Layer 4)
+    lines.push(format!("# ◆シフト ({}前置)", diamond_key));
+    for row in 0..ROWS {
+        for col in 0..COLS {
+            let kana = layout.layers[4][row][col];
+            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+                continue;
+            }
+            let key = keys[row][col];
+            lines.push(format!("◆{}\t{}", key, kana));
         }
     }
 

@@ -322,7 +322,7 @@ fn render_keyboard(f: &mut Frame, area: Rect, state: &TuiState) {
 }
 
 /// Colemak一致詳細を計算（評価関数と同じロジック）
-fn calc_colemak_match_detail(layers: &[[[char; 10]; 3]; 3]) -> (usize, usize, usize) {
+fn calc_colemak_match_detail(layers: &[[[char; 10]; 3]; 5]) -> (usize, usize, usize) {
     use crate::layout::{romaji_phonemes, COLEMAK_POSITIONS};
     use std::collections::HashMap;
     
@@ -429,7 +429,7 @@ fn calc_colemak_match_detail(layers: &[[[char; 10]; 3]; 3]) -> (usize, usize, us
 
 /// 月配列一致詳細を計算（ヘルパー関数）
 /// 戻り値: (L0一致, L0総数, L1一致, L1総数, L2一致, L2総数)
-fn calc_tsuki_match_detail(layers: &[[[char; 10]; 3]; 3]) -> (usize, usize, usize, usize, usize, usize) {
+fn calc_tsuki_match_detail(layers: &[[[char; 10]; 3]; 5]) -> (usize, usize, usize, usize, usize, usize) {
     // 月配列: Layer 0 = 表面, Layer 1 = 裏面
     let tsuki_layers = [
         [

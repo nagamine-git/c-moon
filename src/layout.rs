@@ -103,7 +103,8 @@ impl KeyPos {
         // シフトレイヤーのペナルティ
         let layer_weight = match self.layer {
             0 => 1.0,
-            1 | 2 => 2.0,  // シフト必要
+            1 | 2 => 2.0,  // 中指シフト（★☆）
+            3 | 4 => 2.3,  // 薬指シフト（◎◆）
             _ => 3.0,
         };
 
@@ -195,13 +196,29 @@ impl Layout {
             ['ぜ', 'へ', 'ば', 'ね', 'び', 'む', 'ろ', '；', '・', 'ぢ'],
         ];
 
-        // Layer 2 (★シフト) - sキー（★印字、col=2左）前置で発動
+        // Layer 2 (★シフト) - dキー（★印字、col=2左）前置で発動
         // 左手小指側（col<=1）とcol=2上下は避ける → 右手側（col=5-9）を積極活用
         // Ver位置（col=2, row=0,2）に空白を優先配置
         layers[2] = [
             ['ぴ', 'ぃ', '　', 'ふ', 'ぎ', 'ぺ', 'ゃ', 'み', 'や', 'ぇ'],  // col=2に空白
             ['ぱ', 'そ', 'は', 'お', 'ち', 'わ', 'ょ', 'も', 'り', 'れ'],
             ['ぅ', 'ぉ', '　', 'ざ', 'ぼ', 'ぞ', 'ず', 'め', 'べ', 'づ'],  // col=2に空白
+        ];
+
+        // Layer 3 (◎シフト) - lキー（◎印字、col=8右薬指）前置で発動
+        // 中頻度文字を配置
+        layers[3] = [
+            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
+            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
+            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
+        ];
+
+        // Layer 4 (◆シフト) - sキー（◆印字、col=1左薬指）前置で発動
+        // 中頻度文字を配置
+        layers[4] = [
+            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
+            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
+            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
         ];
 
         Self {
@@ -221,16 +238,16 @@ impl Layout {
     pub fn random_with_chars(rng: &mut ChaCha8Rng, hiragana_chars: &[char]) -> Self {
         let mut chars: Vec<char> = hiragana_chars.to_vec();
         
-        // 90ポジション中、固定位置：
-        // Layer 0: ★☆（2個）+、。（2個）= 4個
+        // 150ポジション中、固定位置：
+        // Layer 0: ★☆◎◆（4個）+、。（2個）= 6個
         // Layer 1: ;・（2個）= 2個
         // Ver空白: L2[0][2], L2[2][2] = 2個
-        // 実際に配置可能（シャッフル対象）: 90 - 6 - 2 = 82ポジション
-        const FIXED_COUNT: usize = 6;   // ★☆、。；・
+        // 実際に配置可能（シャッフル対象）: 150 - 8 - 2 = 140ポジション
+        const FIXED_COUNT: usize = 8;   // ★☆◎◆、。；・
         const VER_BLANK_COUNT: usize = 2;  // Ver位置の空白
         let total_positions = KEYS_PER_LAYER * NUM_LAYERS - FIXED_COUNT - VER_BLANK_COUNT;
         
-        // 81個分の文字を用意（足りなければ空白で埋める）
+        // 140個分の文字を用意（足りなければ空白で埋める）
         while chars.len() < total_positions {
             chars.push('　');
         }
@@ -243,8 +260,10 @@ impl Layout {
         
         // 固定文字の配置
         // Layer 0: シフトキーと句読点
-        layers[0][1][2] = '★';  // sキー（col=2、左） → 前置で Layer 2（★シフト）発動
-        layers[0][1][7] = '☆';  // eキー（col=7、右） → 前置で Layer 1（☆シフト）発動
+        layers[0][1][1] = '◆';  // sキー（col=1、左薬指） → 前置で Layer 4（◆シフト）発動
+        layers[0][1][2] = '★';  // dキー（col=2、左中指） → 前置で Layer 2（★シフト）発動
+        layers[0][1][7] = '☆';  // kキー（col=7、右中指） → 前置で Layer 1（☆シフト）発動
+        layers[0][1][8] = '◎';  // lキー（col=8、右薬指） → 前置で Layer 3（◎シフト）発動
         layers[0][2][7] = '、';
         layers[0][2][8] = '。';
         
@@ -256,7 +275,7 @@ impl Layout {
         layers[2][0][2] = '　';  // Layer 2, ★の上（col=2, row=0）
         layers[2][2][2] = '　';  // Layer 2, ★の下（col=2, row=2）
         
-        // シャッフルした文字を配置（Ver位置と固定位置を除く81ポジション）
+        // シャッフルした文字を配置（Ver位置と固定位置を除く140ポジション）
         let mut char_idx = 0;
         for layer in 0..NUM_LAYERS {
             for row in 0..ROWS {
@@ -291,8 +310,12 @@ impl Layout {
 
     /// 固定位置かどうかを判定
     pub fn is_fixed_position(layer: usize, row: usize, col: usize) -> bool {
-        // Layer 0：シフトキー位置（★=s/col2左, ☆=e/col7右）
+        // Layer 0：中指シフトキー位置（★=d/col2左, ☆=k/col7右）
         if layer == 0 && row == 1 && (col == 2 || col == 7) {
+            return true;
+        }
+        // Layer 0：薬指シフトキー位置（◆=s/col1左, ◎=l/col8右）
+        if layer == 0 && row == 1 && (col == 1 || col == 8) {
             return true;
         }
         // Layer 0：句読点（、。）

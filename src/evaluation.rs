@@ -154,6 +154,8 @@ impl Evaluator {
         let mut single_keystrokes = 0.0;
         let mut layer1_keystrokes = 0.0;
         let mut layer2_keystrokes = 0.0;
+        let mut layer3_keystrokes = 0.0;
+        let mut layer4_keystrokes = 0.0;
         let mut row_skips = 0.0;
         let mut same_finger = 0.0;
         let mut alternating = 0.0;
@@ -177,6 +179,10 @@ impl Evaluator {
                         layer1_keystrokes += count_f;
                     } else if pos.layer == 2 {
                         layer2_keystrokes += count_f;
+                    } else if pos.layer == 3 {
+                        layer3_keystrokes += count_f;
+                    } else if pos.layer == 4 {
+                        layer4_keystrokes += count_f;
                     }
                 } else {
                     single_keystrokes += count_f;
@@ -254,11 +260,16 @@ impl Evaluator {
             arpeggio: arpeggio_rate,
 
             shift_balance: {
-                let total_shifted = layer1_keystrokes + layer2_keystrokes;
+                let total_shifted = layer1_keystrokes + layer2_keystrokes
+                    + layer3_keystrokes + layer4_keystrokes;
                 if total_shifted > 0.0 {
-                    let ratio = layer1_keystrokes.min(layer2_keystrokes)
-                        / layer1_keystrokes.max(layer2_keystrokes);
-                    100.0 * ratio
+                    // 4層の均等性を評価（最小値/平均値の比率）
+                    let avg = total_shifted / 4.0;
+                    let min_layer = layer1_keystrokes
+                        .min(layer2_keystrokes)
+                        .min(layer3_keystrokes)
+                        .min(layer4_keystrokes);
+                    100.0 * (min_layer / avg)
                 } else {
                     100.0
                 }
