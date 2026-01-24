@@ -582,7 +582,7 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
         )));
 
-        // Core計算式（基本5指標のみ）
+        // Core計算式（基本6指標）
         left_lines.push(Line::from(format!("同指連続低: {:.1}%^{:.1}={:.3}",
             s.same_finger, w.same_finger, (s.same_finger/100.0).powf(w.same_finger))));
         left_lines.push(Line::from(format!("段越え低: {:.1}%^{:.1}={:.3}",
@@ -593,14 +593,17 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             s.total_keystrokes, w.total_keystrokes, (s.total_keystrokes/100.0).powf(w.total_keystrokes))));
         left_lines.push(Line::from(format!("左右交互: {:.1}%^{:.1}={:.3}",
             s.alternating, w.alternating, (s.alternating/100.0).powf(w.alternating))));
+        left_lines.push(Line::from(format!("Colemak: {:.1}%^{:.1}={:.3}",
+            s.colemak_similarity, w.colemak_similarity, (s.colemak_similarity/100.0).powf(w.colemak_similarity))));
 
         let core_product = (s.same_finger/100.0).powf(w.same_finger)
             * (s.row_skip/100.0).powf(w.row_skip)
             * (s.home_position/100.0).powf(w.home_position)
             * (s.total_keystrokes/100.0).powf(w.total_keystrokes)
-            * (s.alternating/100.0).powf(w.alternating);
+            * (s.alternating/100.0).powf(w.alternating)
+            * (s.colemak_similarity/100.0).powf(w.colemak_similarity);
         let total_weight = w.same_finger + w.row_skip + w.home_position
-            + w.total_keystrokes + w.alternating;
+            + w.total_keystrokes + w.alternating + w.colemak_similarity;
         let core_mult = core_product.powf(1.0 / total_weight) * 100.0;
         
         left_lines.push(Line::from(""));
@@ -614,8 +617,6 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
         )));
         left_lines.push(Line::from(format!("単打率: {:.1}×{:.1}={:.1}",
             s.single_key, w.single_key, s.single_key * w.single_key)));
-        left_lines.push(Line::from(format!("Colemak: {:.1}×{:.1}={:.1}",
-            s.colemak_similarity, w.colemak_similarity, s.colemak_similarity * w.colemak_similarity)));
         left_lines.push(Line::from(format!("位置コスト: {:.1}×{:.1}={:.1}",
             s.position_cost, w.position_cost, s.position_cost * w.position_cost)));
         left_lines.push(Line::from(format!("リダイレクト低: {:.1}×{:.1}={:.1}",
@@ -634,7 +635,6 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             s.shift_balance, w.shift_balance, s.shift_balance * w.shift_balance)));
 
         let additive_bonus = s.single_key * w.single_key
-            + s.colemak_similarity * w.colemak_similarity
             + s.position_cost * w.position_cost
             + s.redirect_low * w.redirect_low
             + s.tsuki_similarity * w.tsuki_similarity
@@ -643,7 +643,7 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             + s.arpeggio * w.arpeggio
             + s.memorability * w.memorability
             + s.shift_balance * w.shift_balance;
-        let bonus_scale = (w.single_key + w.colemak_similarity + w.position_cost
+        let bonus_scale = (w.single_key + w.position_cost
             + w.redirect_low + w.tsuki_similarity + w.roll
             + w.inroll + w.arpeggio + w.memorability + w.shift_balance) * 100.0;
         
@@ -992,6 +992,10 @@ fn render_scores_and_weights(f: &mut Frame, area: Rect, state: &TuiState) {
         lines.push(Line::from(format!(
             "左右交互:   {:.1}% ^{:.1}",
             s.alternating, weights.alternating
+        )));
+        lines.push(Line::from(format!(
+            "Colemak:    {:.1}% ^{:.1}",
+            s.colemak_similarity, weights.colemak_similarity
         )));
 
         lines.push(Line::from(""));

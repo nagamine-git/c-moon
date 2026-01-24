@@ -594,11 +594,11 @@ fn print_scores(layout: &Layout, weights: &EvaluationWeights) {
     println!("  ホームポジ率:   {:.2}% ^{:.2}  (中段頻度/全頻度)", s.home_position, w.home_position);
     println!("  総打鍵コスト少: {:.2}% ^{:.2}  (100 - 正規化effort)", s.total_keystrokes, w.total_keystrokes);
     println!("  左右交互:       {:.2}% ^{:.2}  (交互数/全bigram数)", s.alternating, w.alternating);
-    println!("  単打鍵率:       {:.2}% ^{:.2}  (Layer0頻度/全頻度)", s.single_key, w.single_key);
     println!("  Colemak類似:    {:.2}% ^{:.2}  (一致キー数/配置可能総数)", s.colemak_similarity, w.colemak_similarity);
-    println!("  位置別コスト:   {:.2}% ^{:.2}  (100 - avg_cost/292)", s.position_cost, w.position_cost);
     
     println!("\nBonus Metrics (加算):");
+    println!("  単打鍵率:       {:.2} x {:.1}  (Layer0頻度/全頻度)", s.single_key, w.single_key);
+    println!("  位置別コスト:   {:.2} x {:.1}  (100 - avg_cost/292)", s.position_cost, w.position_cost);
     println!("  リダイレクト少: {:.2} x {:.1}  (100 - redirect率)", s.redirect_low, w.redirect_low);
     println!("  月配列類似:     {:.2} x {:.1}  (一致キー数/配置可能総数)", s.tsuki_similarity, w.tsuki_similarity);
     println!("  ロール率:       {:.2} x {:.1}  (roll数/同手bigram数)", s.roll, w.roll);
