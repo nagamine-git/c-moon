@@ -63,12 +63,8 @@ impl GeneticAlgorithm {
     /// 新しいGAインスタンスを作成
     pub fn new(corpus: CorpusStats, config: GaConfig) -> Self {
         let rng = ChaCha8Rng::seed_from_u64(config.seed);
-        // コーパスから頻度順リストを取得、なければデフォルト
-        let hiragana_chars = if corpus.hiragana_by_freq.is_empty() {
-            HIRAGANA_FREQ_DEFAULT.to_vec()
-        } else {
-            corpus.hiragana_by_freq.clone()
-        };
+        // コーパスから頻度順リストを取得し、欠落文字をデフォルトリストで補完
+        let hiragana_chars = Self::ensure_complete_charset(&corpus.hiragana_by_freq);
         Self {
             evaluator: Evaluator::new(corpus),
             config,
@@ -80,18 +76,32 @@ impl GeneticAlgorithm {
     /// カスタム重みでGAインスタンスを作成
     pub fn with_weights(corpus: CorpusStats, config: GaConfig, weights: EvaluationWeights) -> Self {
         let rng = ChaCha8Rng::seed_from_u64(config.seed);
-        // コーパスから頻度順リストを取得、なければデフォルト
-        let hiragana_chars = if corpus.hiragana_by_freq.is_empty() {
-            HIRAGANA_FREQ_DEFAULT.to_vec()
-        } else {
-            corpus.hiragana_by_freq.clone()
-        };
+        // コーパスから頻度順リストを取得し、欠落文字をデフォルトリストで補完
+        let hiragana_chars = Self::ensure_complete_charset(&corpus.hiragana_by_freq);
         Self {
             evaluator: Evaluator::with_weights(corpus, weights),
             config,
             rng,
             hiragana_chars,
         }
+    }
+
+    /// コーパスの文字リストが全82文字を含むことを保証
+    /// 欠落している文字はHIRAGANA_FREQ_DEFAULTから補完（末尾に追加）
+    fn ensure_complete_charset(corpus_chars: &[char]) -> Vec<char> {
+        use std::collections::HashSet;
+
+        let mut result = corpus_chars.to_vec();
+        let existing: HashSet<char> = result.iter().copied().collect();
+
+        // デフォルトリストから欠落文字を探して末尾に追加
+        for &c in HIRAGANA_FREQ_DEFAULT {
+            if !existing.contains(&c) {
+                result.push(c);
+            }
+        }
+
+        result
     }
 
     /// 最適化を実行
@@ -239,9 +249,9 @@ impl GeneticAlgorithm {
                 (0..ROWS).flat_map(move |r| {
                     (0..COLS).filter_map(move |c| {
                         // Ver位置の空白は固定扱い（スワップ禁止）
-                        let is_ver_blank = (l == 1 && c == 7 && r == 0) ||  // Layer1, ☆の上
-                                           (l == 2 && c == 2 && (r == 0 || r == 2));  // Layer2, ★の上下
-                        
+                        // Layer 2の★の上下のみ
+                        let is_ver_blank = l == 2 && c == 2 && (r == 0 || r == 2);
+
                         if !Layout::is_fixed_position(l, r, c) && !is_ver_blank {
                             Some((l, r, c))
                         } else {
@@ -271,6 +281,21 @@ impl GeneticAlgorithm {
     fn repair_layout(&mut self, layout: &mut Layout) {
         use std::collections::HashSet;
 
+        // まず、固定位置を強制的に設定（交叉で壊れた場合に備える）
+        // Layer 0: シフトキーと句読点
+        layout.layers[0][1][2] = '★';
+        layout.layers[0][1][7] = '☆';
+        layout.layers[0][2][7] = '、';
+        layout.layers[0][2][8] = '。';
+
+        // Layer 1: 記号
+        layout.layers[1][2][7] = '；';
+        layout.layers[1][2][8] = '・';
+
+        // Ver位置の空白を強制設定
+        layout.layers[2][0][2] = '　';
+        layout.layers[2][2][2] = '　';
+
         let mut seen: HashSet<char> = HashSet::new();
         let mut missing: Vec<char> = Vec::new();
         let mut duplicates: Vec<(usize, usize, usize)> = Vec::new();
@@ -279,13 +304,21 @@ impl GeneticAlgorithm {
         for layer in 0..NUM_LAYERS {
             for row in 0..ROWS {
                 for col in 0..COLS {
-                    let c = layout.layers[layer][row][col];
-                    // 固定位置の記号をスキップ
-                    if c == '☆' || c == '★' || c == '、' || c == '。' || c == '；' || c == '・' || c == '　' || c == '\0' {
+                    // 固定位置とVer位置はスキップ
+                    if Layout::is_fixed_position(layer, row, col) {
                         continue;
                     }
 
-                    if seen.contains(&c) {
+                    // Ver位置の空白もスキップ
+                    let is_ver_blank = layer == 2 && col == 2 && (row == 0 || row == 2);
+                    if is_ver_blank {
+                        continue;
+                    }
+
+                    let c = layout.layers[layer][row][col];
+
+                    // Ver位置以外の全角スペースや重複文字を検出
+                    if c == '　' || c == '\0' || seen.contains(&c) {
                         duplicates.push((layer, row, col));
                     } else {
                         seen.insert(c);
@@ -301,11 +334,13 @@ impl GeneticAlgorithm {
             }
         }
 
-        // 重複位置に欠落文字を配置（足りなければ空白で埋める）
+        // 重複位置に欠落文字を配置
         missing.shuffle(&mut self.rng);
         for (i, (layer, row, col)) in duplicates.iter().enumerate() {
-            let replacement = missing.get(i).copied().unwrap_or('　');
-            layout.layers[*layer][*row][*col] = replacement;
+            if let Some(&replacement) = missing.get(i) {
+                layout.layers[*layer][*row][*col] = replacement;
+            }
+            // 欠落文字が足りない場合でも警告を出さない（通常は発生しないはず）
         }
     }
 }
