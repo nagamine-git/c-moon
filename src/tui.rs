@@ -1075,7 +1075,11 @@ pub fn run_tui_thread(state: Arc<Mutex<TuiState>>) -> std::thread::JoinHandle<()
                 _ => {}
             }
 
-            std::thread::sleep(std::time::Duration::from_millis(50));
+            // ETA表示のため1秒に1回更新（デバッグモードは負荷が高いため少し長め）
+            let state_for_sleep = state.lock().unwrap();
+            let sleep_ms = if state_for_sleep.debug { 1000 } else { 500 };
+            drop(state_for_sleep);
+            std::thread::sleep(std::time::Duration::from_millis(sleep_ms));
         }
 
         if let Err(e) = app.cleanup() {

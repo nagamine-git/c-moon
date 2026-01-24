@@ -497,13 +497,25 @@ fn run_multi_with_tui(
             );
             
             let result = ga.run_with_callback(|gen, fitness, layout| {
-                let mut s = state.lock().unwrap();
-                if !s.running {
-                    return;
-                }
-                // 全ランで最良のものだけTUI更新
-                if fitness > s.best_fitness {
-                    s.update(gen, fitness, layout);
+                // try_lockでブロッキング回避（ロック競合時はスキップ）
+                if let Ok(mut s) = state.try_lock() {
+                    if !s.running {
+                        return;
+                    }
+
+                    // 世代数は毎回更新（ETA計算のため）
+                    s.generation = gen;
+
+                    // ベスト更新時のみlayoutをコピー（重い処理）
+                    if fitness > s.best_fitness {
+                        s.best_fitness = fitness;
+                        s.best_layout = Some(layout.clone());
+                    }
+
+                    // fitness_historyは毎回追加
+                    if s.fitness_history.len() <= gen {
+                        s.fitness_history.push(fitness);
+                    }
                 }
             });
             
