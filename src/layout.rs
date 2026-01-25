@@ -246,13 +246,13 @@ impl Layout {
         // 150ポジション中、固定位置：
         // Layer 0: ★☆◎◆（4個）+、。（2個）= 6個
         // Layer 1: ;・（2個）= 2個
-        // Ver空白: L2[0][2], L2[2][2] = 2個
-        // 実際に配置可能（シャッフル対象）: 150 - 8 - 2 = 140ポジション
+        // Ver空白: L2[0][2], L2[2][2], L3[0][8], L3[2][8], L4[0][1], L4[2][1] = 6個
+        // 実際に配置可能（シャッフル対象）: 150 - 8 - 6 = 136ポジション
         const FIXED_COUNT: usize = 8;   // ★☆◎◆、。；・
-        const VER_BLANK_COUNT: usize = 2;  // Ver位置の空白
+        const VER_BLANK_COUNT: usize = 6;  // Ver位置の空白（Layer 2,3,4の各シフトキー上下）
         let total_positions = KEYS_PER_LAYER * NUM_LAYERS - FIXED_COUNT - VER_BLANK_COUNT;
-        
-        // 140個分の文字を用意（足りなければ空白で埋める）
+
+        // 136個分の文字を用意（足りなければ空白で埋める）
         while chars.len() < total_positions {
             chars.push("　".to_string());
         }
@@ -285,14 +285,20 @@ impl Layout {
         // Ver位置に空白を固定配置（最悪位置 = 空白が最適）
         layers[2][0][2] = "　".to_string();  // Layer 2, ★の上（col=2, row=0）
         layers[2][2][2] = "　".to_string();  // Layer 2, ★の下（col=2, row=2）
+        layers[3][0][8] = "　".to_string();  // Layer 3, ◎の上（col=8, row=0）
+        layers[3][2][8] = "　".to_string();  // Layer 3, ◎の下（col=8, row=2）
+        layers[4][0][1] = "　".to_string();  // Layer 4, ◆の上（col=1, row=0）
+        layers[4][2][1] = "　".to_string();  // Layer 4, ◆の下（col=1, row=2）
 
-        // シャッフルした文字を配置（Ver位置と固定位置を除く140ポジション）
+        // シャッフルした文字を配置（Ver位置と固定位置を除く136ポジション）
         let mut char_idx = 0;
         for layer in 0..NUM_LAYERS {
             for row in 0..ROWS {
                 for col in 0..COLS {
                     // Ver位置の空白判定
-                    let is_ver_blank = layer == 2 && col == 2 && (row == 0 || row == 2);
+                    let is_ver_blank = (layer == 2 && col == 2 && (row == 0 || row == 2))
+                        || (layer == 3 && col == 8 && (row == 0 || row == 2))
+                        || (layer == 4 && col == 1 && (row == 0 || row == 2));
 
                     // 固定位置とVer空白位置をスキップ
                     if !Self::is_fixed_position(layer, row, col) && !is_ver_blank {

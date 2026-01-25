@@ -27,7 +27,8 @@ const HIRAGANA_FREQ_DEFAULT: &[&str] = &[
 
 fn main() {
     println!("=== 新月配列 v2.0 サンプル配列 ===\n");
-    println!("140文字（1gram 74 + 拗音2gram 66）を5層に配置\n");
+    println!("136文字（1gram + 拗音2gram）を5層に配置\n");
+    println!("シフトキー上下はすべて空白（Ver位置）\n");
 
     // 簡易配列生成（固定位置を考慮）
     let mut layers: Vec<Vec<Vec<String>>> = (0..NUM_LAYERS)
@@ -50,12 +51,16 @@ fn main() {
     layers[1][2][7] = "；".to_string();
     layers[1][2][8] = "・".to_string();
 
-    // Layer 2: Ver空白
-    layers[2][0][2] = "　".to_string();
-    layers[2][2][2] = "　".to_string();
+    // Ver空白（各シフトキーの上下）
+    layers[2][0][2] = "　".to_string();  // Layer 2, ★の上
+    layers[2][2][2] = "　".to_string();  // Layer 2, ★の下
+    layers[3][0][8] = "　".to_string();  // Layer 3, ◎の上
+    layers[3][2][8] = "　".to_string();  // Layer 3, ◎の下
+    layers[4][0][1] = "　".to_string();  // Layer 4, ◆の上
+    layers[4][2][1] = "　".to_string();  // Layer 4, ◆の下
 
     // 文字を順番に配置（簡易版）
-    let mut chars: VecDeque<String> = HIRAGANA_FREQ_DEFAULT.iter().take(140).map(|s| s.to_string()).collect();
+    let mut chars: VecDeque<String> = HIRAGANA_FREQ_DEFAULT.iter().take(136).map(|s| s.to_string()).collect();
 
     for layer in 0..NUM_LAYERS {
         for row in 0..ROWS {
@@ -64,7 +69,9 @@ fn main() {
                 let is_fixed = (layer == 0 && row == 1 && (col == 1 || col == 2 || col == 7 || col == 8))
                     || (layer == 0 && row == 2 && (col == 7 || col == 8))
                     || (layer == 1 && row == 2 && (col == 7 || col == 8))
-                    || (layer == 2 && col == 2 && (row == 0 || row == 2));
+                    || (layer == 2 && col == 2 && (row == 0 || row == 2))
+                    || (layer == 3 && col == 8 && (row == 0 || row == 2))
+                    || (layer == 4 && col == 1 && (row == 0 || row == 2));
 
                 if !is_fixed && !chars.is_empty() {
                     layers[layer][row][col] = chars.pop_front().unwrap();
