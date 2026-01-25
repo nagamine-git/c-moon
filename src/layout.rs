@@ -24,19 +24,22 @@ pub const NUM_LAYERS: usize = 5;
 pub const KEYS_PER_LAYER: usize = ROWS * COLS;
 
 /// ひらがな文字のデフォルト頻度順リスト（フォールバック用）
-/// 実際の頻度は1gramファイルから読み込まれる
-pub const HIRAGANA_FREQ_DEFAULT: &[char] = &[
-    // 高頻度（無シフト層候補）
-    'い', 'う', 'ん', 'し', 'か', 'の', 'と', 'た', 'て', 'く',
-    'な', 'に', 'き', 'は', 'こ', 'る', 'が', 'で', 'っ', 'ょ',
-    'す', 'ま', 'じ', 'り', 'も', 'つ', 'お', 'ら', 'を', 'さ',
-    // 中頻度（☆シフト層候補）
-    'あ', 'れ', 'だ', 'ち', 'せ', 'け', 'ー', 'よ', 'ど', 'ゅ',
-    'そ', 'え', 'わ', 'み', 'め', 'ひ', 'ば', 'や', 'ろ', 'ほ',
-    'ふ', 'ゃ', 'ぶ', 'ね', 'ご', 'ぎ', 'げ', 'む', 'ず', 'び',
-    // 低頻度（★シフト層候補）
-    'ざ', 'ぐ', 'ぜ', 'へ', 'べ', 'ゆ', 'ぼ', 'ぷ', 'ぞ', 'ぱ',
-    'ぃ', 'ぽ', 'ぇ', 'づ', 'ぴ', 'ぁ', 'ぬ', 'ぺ', 'ぉ', 'ぢ', 'ぅ', 'ゔ',
+/// 140文字（1gram 74文字 + 拗音2gram 66文字）
+pub const HIRAGANA_FREQ_DEFAULT: &[&str] = &[
+    "い", "う", "ん", "し", "か", "の", "と", "た", "て", "く",
+    "な", "に", "き", "は", "こ", "る", "が", "で", "っ", "す",
+    "ま", "じ", "り", "も", "つ", "お", "ら", "を", "さ", "あ",
+    "れ", "だ", "ち", "せ", "け", "ー", "よ", "ど", "そ", "え",
+    "わ", "み", "め", "ひ", "ば", "や", "ろ", "ほ", "しょ", "ふ",
+    "ぶ", "ね", "ご", "ぎ", "じょ", "げ", "しゅ", "む", "きょ", "ず",
+    "び", "しゃ", "ちょ", "ざ", "ぐ", "ぜ", "へ", "べ", "ゆ", "じゅ",
+    "ぼ", "ぷ", "りょ", "ぞ", "ぱ", "きゅ", "ちゅ", "ぎょ", "ぽ", "にゅ",
+    "ひょ", "づ", "じゃ", "ちゃ", "ぴ", "ぬ", "てぃ", "りゅ", "ぺ", "きゃ",
+    "ふぁ", "でぃ", "しぇ", "びょ", "りゃ", "ふぃ", "ちぇ", "ぎゃ", "うぇ", "なぁ",
+    "ふぇ", "ぴょ", "ぴゅ", "じぇ", "ふぉ", "ヴ", "びゅ", "ぢ", "みょ", "ひゃ",
+    "みゅ", "ぎゅ", "みぃ", "ヴぁ", "うぃ", "にょ", "ねぇ", "まぁ", "ねぃ", "〓ぉ",
+    "でゅ", "みゃ", "うぉ", "かぁ", "にゃ", "とぅ", "くぉ", "ひゅ", "はぁ", "へぇ",
+    "りぃ", "ぎぃ", "だぁ", "おぉ", "しぃ", "どぅ", "ヴぃ", "てぇ", "ヴぇ", "あぁ",
 ];
 
 // ============================================================================
@@ -119,13 +122,13 @@ impl KeyPos {
 /// キーボード配列を表す構造体
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Layout {
-    /// 3層の配列データ [layer][row][col]
-    pub layers: [[[char; COLS]; ROWS]; NUM_LAYERS],
-    
+    /// 5層の配列データ [layer][row][col] - String型（1文字 or 2文字の拗音対応）
+    pub layers: Vec<Vec<Vec<String>>>,
+
     /// 評価フィットネス値
     #[serde(default)]
     pub fitness: f64,
-    
+
     /// 詳細スコア
     #[serde(default)]
     pub scores: EvaluationScores,
@@ -168,8 +171,20 @@ pub struct EvaluationScores {
 
 impl Default for Layout {
     fn default() -> Self {
+        let layers = (0..NUM_LAYERS)
+            .map(|_| {
+                (0..ROWS)
+                    .map(|_| {
+                        (0..COLS)
+                            .map(|_| "　".to_string())
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
         Self {
-            layers: [[['　'; COLS]; ROWS]; NUM_LAYERS],
+            layers,
             fitness: 0.0,
             scores: EvaluationScores::default(),
         }
@@ -179,47 +194,37 @@ impl Default for Layout {
 impl Layout {
     /// 改善版カスタムレイアウト（初期配置として使用）
     pub fn improved_custom() -> Self {
-        let mut layers = [[['　'; COLS]; ROWS]; NUM_LAYERS];
+        let mut layers: Vec<Vec<Vec<String>>> = (0..NUM_LAYERS)
+            .map(|_| {
+                (0..ROWS)
+                    .map(|_| vec!["　".to_string(); COLS])
+                    .collect()
+            })
+            .collect();
 
         // Layer 0 (No Shift) - 高頻度文字最適化
-        layers[0] = [
-            ['よ', 'こ', 'が', 'て', 'ぶ', 'つ', 'ゅ', 'く', 'に', 'を'],
-            ['か', 'し', '★', 'う', 'た', 'と', 'ん', '☆', 'い', 'の'],
-            ['じ', 'け', 'き', 'な', 'さ', 'っ', 'る', '、', '。', 'ー'],
-        ];
+        layers[0][0] = vec!["よ", "こ", "が", "て", "ぶ", "つ", "ゅ", "く", "に", "を"].iter().map(|s| s.to_string()).collect();
+        layers[0][1] = vec!["か", "し", "★", "う", "た", "と", "ん", "☆", "い", "の"].iter().map(|s| s.to_string()).collect();
+        layers[0][2] = vec!["じ", "け", "き", "な", "さ", "っ", "る", "、", "。", "ー"].iter().map(|s| s.to_string()).collect();
 
-        // Layer 1 (☆シフト) - eキー（☆印字、col=7右）前置で発動、;・を、。と同位置に固定
+        // Layer 1 (☆シフト) - kキー（☆印字、col=7右）前置で発動、;・を、。と同位置に固定
         // 右手小指側（col>=8）は避ける → 左手側（col=0-4）を積極活用
-        layers[1] = [
-            ['ぽ', 'ひ', 'ほ', 'ぷ', 'げ', 'ぬ', 'ご', 'ぐ', 'ぁ', 'ゔ'],
-            ['だ', 'す', 'ら', 'あ', 'せ', 'ど', 'で', 'ま', 'え', 'ゆ'],
-            ['ぜ', 'へ', 'ば', 'ね', 'び', 'む', 'ろ', '；', '・', 'ぢ'],
-        ];
+        layers[1][0] = vec!["ぽ", "ひ", "ほ", "ぷ", "げ", "ぬ", "ご", "ぐ", "ぁ", "ゔ"].iter().map(|s| s.to_string()).collect();
+        layers[1][1] = vec!["だ", "す", "ら", "あ", "せ", "ど", "で", "ま", "え", "ゆ"].iter().map(|s| s.to_string()).collect();
+        layers[1][2] = vec!["ぜ", "へ", "ば", "ね", "び", "む", "ろ", "；", "・", "ぢ"].iter().map(|s| s.to_string()).collect();
 
         // Layer 2 (★シフト) - dキー（★印字、col=2左）前置で発動
         // 左手小指側（col<=1）とcol=2上下は避ける → 右手側（col=5-9）を積極活用
         // Ver位置（col=2, row=0,2）に空白を優先配置
-        layers[2] = [
-            ['ぴ', 'ぃ', '　', 'ふ', 'ぎ', 'ぺ', 'ゃ', 'み', 'や', 'ぇ'],  // col=2に空白
-            ['ぱ', 'そ', 'は', 'お', 'ち', 'わ', 'ょ', 'も', 'り', 'れ'],
-            ['ぅ', 'ぉ', '　', 'ざ', 'ぼ', 'ぞ', 'ず', 'め', 'べ', 'づ'],  // col=2に空白
-        ];
+        layers[2][0] = vec!["ぴ", "ぃ", "　", "ふ", "ぎ", "ぺ", "ゃ", "み", "や", "ぇ"].iter().map(|s| s.to_string()).collect();  // col=2に空白
+        layers[2][1] = vec!["ぱ", "そ", "は", "お", "ち", "わ", "ょ", "も", "り", "れ"].iter().map(|s| s.to_string()).collect();
+        layers[2][2] = vec!["ぅ", "ぉ", "　", "ざ", "ぼ", "ぞ", "ず", "め", "べ", "づ"].iter().map(|s| s.to_string()).collect();  // col=2に空白
 
         // Layer 3 (◎シフト) - lキー（◎印字、col=8右薬指）前置で発動
-        // 中頻度文字を配置
-        layers[3] = [
-            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
-            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
-            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
-        ];
+        // 中頻度文字を配置（空白で初期化済み）
 
         // Layer 4 (◆シフト) - sキー（◆印字、col=1左薬指）前置で発動
-        // 中頻度文字を配置
-        layers[4] = [
-            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
-            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
-            ['　', '　', '　', '　', '　', '　', '　', '　', '　', '　'],
-        ];
+        // 中頻度文字を配置（空白で初期化済み）
 
         Self {
             layers,
@@ -234,9 +239,9 @@ impl Layout {
     }
     
     /// 指定した文字リストからランダムな配列を生成
-    /// コーパスの1gramから取得した頻度順リストを使用可能
-    pub fn random_with_chars(rng: &mut ChaCha8Rng, hiragana_chars: &[char]) -> Self {
-        let mut chars: Vec<char> = hiragana_chars.to_vec();
+    /// コーパスの1gramから取得した頻度順リストを使用可能（1文字 or 2文字の拗音対応）
+    pub fn random_with_chars(rng: &mut ChaCha8Rng, hiragana_chars: &[&str]) -> Self {
+        let mut chars: Vec<String> = hiragana_chars.iter().map(|s| s.to_string()).collect();
         
         // 150ポジション中、固定位置：
         // Layer 0: ★☆◎◆（4個）+、。（2個）= 6個
@@ -249,32 +254,38 @@ impl Layout {
         
         // 140個分の文字を用意（足りなければ空白で埋める）
         while chars.len() < total_positions {
-            chars.push('　');
+            chars.push("　".to_string());
         }
         // 多すぎる場合は切り詰め
         chars.truncate(total_positions);
-        
+
         chars.shuffle(rng);
-        
-        let mut layers = [[['　'; COLS]; ROWS]; NUM_LAYERS];
-        
+
+        let mut layers: Vec<Vec<Vec<String>>> = (0..NUM_LAYERS)
+            .map(|_| {
+                (0..ROWS)
+                    .map(|_| vec!["　".to_string(); COLS])
+                    .collect()
+            })
+            .collect();
+
         // 固定文字の配置
         // Layer 0: シフトキーと句読点
-        layers[0][1][1] = '◆';  // sキー（col=1、左薬指） → 前置で Layer 4（◆シフト）発動
-        layers[0][1][2] = '★';  // dキー（col=2、左中指） → 前置で Layer 2（★シフト）発動
-        layers[0][1][7] = '☆';  // kキー（col=7、右中指） → 前置で Layer 1（☆シフト）発動
-        layers[0][1][8] = '◎';  // lキー（col=8、右薬指） → 前置で Layer 3（◎シフト）発動
-        layers[0][2][7] = '、';
-        layers[0][2][8] = '。';
-        
+        layers[0][1][1] = "◆".to_string();  // sキー（col=1、左薬指） → 前置で Layer 4（◆シフト）発動
+        layers[0][1][2] = "★".to_string();  // dキー（col=2、左中指） → 前置で Layer 2（★シフト）発動
+        layers[0][1][7] = "☆".to_string();  // kキー（col=7、右中指） → 前置で Layer 1（☆シフト）発動
+        layers[0][1][8] = "◎".to_string();  // lキー（col=8、右薬指） → 前置で Layer 3（◎シフト）発動
+        layers[0][2][7] = "、".to_string();
+        layers[0][2][8] = "。".to_string();
+
         // Layer 1（☆シフト）: 記号 - 、。と同じ物理位置に配置
-        layers[1][2][7] = '；';  // セミコロン（、の位置）
-        layers[1][2][8] = '・';  // 中黒（。の位置）
-        
+        layers[1][2][7] = "；".to_string();  // セミコロン（、の位置）
+        layers[1][2][8] = "・".to_string();  // 中黒（。の位置）
+
         // Ver位置に空白を固定配置（最悪位置 = 空白が最適）
-        layers[2][0][2] = '　';  // Layer 2, ★の上（col=2, row=0）
-        layers[2][2][2] = '　';  // Layer 2, ★の下（col=2, row=2）
-        
+        layers[2][0][2] = "　".to_string();  // Layer 2, ★の上（col=2, row=0）
+        layers[2][2][2] = "　".to_string();  // Layer 2, ★の下（col=2, row=2）
+
         // シャッフルした文字を配置（Ver位置と固定位置を除く140ポジション）
         let mut char_idx = 0;
         for layer in 0..NUM_LAYERS {
@@ -282,15 +293,15 @@ impl Layout {
                 for col in 0..COLS {
                     // Ver位置の空白判定
                     let is_ver_blank = layer == 2 && col == 2 && (row == 0 || row == 2);
-                    
+
                     // 固定位置とVer空白位置をスキップ
                     if !Self::is_fixed_position(layer, row, col) && !is_ver_blank {
                         if char_idx < chars.len() {
-                            layers[layer][row][col] = chars[char_idx];
+                            layers[layer][row][col] = chars[char_idx].clone();
                             char_idx += 1;
                         } else {
                             // 本来ここには到達しないはず（配置数が一致）
-                            layers[layer][row][col] = '　';
+                            layers[layer][row][col] = "　".to_string();
                         }
                     }
                 }
@@ -330,7 +341,7 @@ impl Layout {
     }
 
     /// 文字の位置を検索
-    pub fn find_char(&self, c: char) -> Option<KeyPos> {
+    pub fn find_char(&self, c: &str) -> Option<KeyPos> {
         for layer in 0..NUM_LAYERS {
             for row in 0..ROWS {
                 for col in 0..COLS {
