@@ -403,9 +403,9 @@ impl Evaluator {
         for layer in 0..NUM_LAYERS {
             for row in 0..ROWS {
                 for col in 0..COLS {
-                    let c = layout.layers[layer][row][col];
+                    let c = &layout.layers[layer][row][col];
 
-                    if c != '　' || crate::layout::Layout::is_fixed_position(layer, row, col) {
+                    if c != "　" || crate::layout::Layout::is_fixed_position(layer, row, col) {
                         continue;
                     }
 
@@ -463,12 +463,14 @@ impl Evaluator {
 
             for row in 0..ROWS {
                 for col in 0..COLS {
-                    let c = layout.layers[layer][row][col];
-                    if c == '☆' || c == '★' || c == '、' || c == '。' || c == '　' || c == '\0' || c == '゛' || c == '゜' {
+                    let c = &layout.layers[layer][row][col];
+                    if c == "☆" || c == "★" || c == "、" || c == "。" || c == "　" || c == "\0" || c == "゛" || c == "゜" {
                         continue;
                     }
 
-                    let (consonant, vowel) = romaji_phonemes(c);
+                    // 1文字目を使って評価（拗音2gramは今後対応）
+                    let first_char = c.chars().next().unwrap_or('　');
+                    let (consonant, vowel) = romaji_phonemes(first_char);
 
                     let char_max_score = match (consonant, vowel) {
                         (Some(_), Some(_)) => 2.0 * layer_weight,
@@ -529,12 +531,14 @@ impl Evaluator {
 
             for row in 0..ROWS {
                 for col in 0..COLS {
-                    let c = layout.layers[ga_layer][row][col];
-                    if c == '☆' || c == '★' || c == '、' || c == '。' || c == '　' || c == '\0' || c == '゛' || c == '゜' {
+                    let c = &layout.layers[ga_layer][row][col];
+                    if c == "☆" || c == "★" || c == "、" || c == "。" || c == "　" || c == "\0" || c == "゛" || c == "゜" {
                         continue;
                     }
 
-                    if let Some(&tsuki_pos) = self.tsuki.char_positions.get(&c) {
+                    // 1文字目を使って評価（拗音2gramは今後対応）
+                    let first_char = c.chars().next().unwrap_or('　');
+                    if let Some(&tsuki_pos) = self.tsuki.char_positions.get(&first_char) {
                         if tsuki_pos.layer == expected_tsuki_layer {
                             total += 1;
                             if row == tsuki_pos.row && col == tsuki_pos.col {

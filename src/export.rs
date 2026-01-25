@@ -248,16 +248,16 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
 
     for row in 0..ROWS {
         for col in 0..COLS {
-            if layout.layers[0][row][col] == '★' {
+            if layout.layers[0][row][col] == "★" {
                 star_key = QWERTY_KEYS[row][col];
             }
-            if layout.layers[0][row][col] == '☆' {
+            if layout.layers[0][row][col] == "☆" {
                 circle_key = QWERTY_KEYS[row][col];
             }
-            if layout.layers[0][row][col] == '◎' {
+            if layout.layers[0][row][col] == "◎" {
                 double_circle_key = QWERTY_KEYS[row][col];
             }
-            if layout.layers[0][row][col] == '◆' {
+            if layout.layers[0][row][col] == "◆" {
                 diamond_key = QWERTY_KEYS[row][col];
             }
         }
@@ -267,7 +267,7 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[0][row][col];
-            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' {
+            if kana == "★" || kana == "☆" || kana == "◎" || kana == "◆" || kana == "　" || kana == "\0" {
                 continue;
             }
             let key = QWERTY_KEYS[row][col];
@@ -284,7 +284,7 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[1][row][col];
-            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == "★" || kana == "☆" || kana == "◎" || kana == "◆" || kana == "　" || kana == "\0" || kana == "゛" || kana == "゜" {
                 continue;
             }
             let key = QWERTY_KEYS[row][col];
@@ -304,7 +304,7 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[2][row][col];
-            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == "★" || kana == "☆" || kana == "◎" || kana == "◆" || kana == "　" || kana == "\0" || kana == "゛" || kana == "゜" {
                 continue;
             }
             let key = QWERTY_KEYS[row][col];
@@ -324,7 +324,7 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[3][row][col];
-            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == "★" || kana == "☆" || kana == "◎" || kana == "◆" || kana == "　" || kana == "\0" || kana == "゛" || kana == "゜" {
                 continue;
             }
             let key = QWERTY_KEYS[row][col];
@@ -344,7 +344,7 @@ pub fn export_analyzer_json(layout: &Layout, path: &Path) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[4][row][col];
-            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == "★" || kana == "☆" || kana == "◎" || kana == "◆" || kana == "　" || kana == "\0" || kana == "゛" || kana == "゜" {
                 continue;
             }
             let key = QWERTY_KEYS[row][col];
@@ -389,16 +389,16 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
 
     for row in 0..ROWS {
         for col in 0..COLS {
-            if layout.layers[0][row][col] == '★' {
+            if layout.layers[0][row][col] == "★" {
                 star_key = keys[row][col];
             }
-            if layout.layers[0][row][col] == '☆' {
+            if layout.layers[0][row][col] == "☆" {
                 circle_key = keys[row][col];
             }
-            if layout.layers[0][row][col] == '◎' {
+            if layout.layers[0][row][col] == "◎" {
                 double_circle_key = keys[row][col];
             }
-            if layout.layers[0][row][col] == '◆' {
+            if layout.layers[0][row][col] == "◆" {
                 diamond_key = keys[row][col];
             }
         }
@@ -421,7 +421,7 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[0][row][col];
-            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' {
+            if kana == "★" || kana == "☆" || kana == "◎" || kana == "◆" || kana == "　" || kana == "\0" {
                 continue;
             }
             let key = keys[row][col];
@@ -435,7 +435,7 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[1][row][col];
-            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == "★" || kana == "☆" || kana == "◎" || kana == "◆" || kana == "　" || kana == "\0" || kana == "゛" || kana == "゜" {
                 continue;
             }
             let key = keys[row][col];
@@ -449,7 +449,7 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[2][row][col];
-            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == "★" || kana == "☆" || kana == "◎" || kana == "◆" || kana == "　" || kana == "\0" || kana == "゛" || kana == "゜" {
                 continue;
             }
             let key = keys[row][col];
@@ -463,7 +463,7 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[3][row][col];
-            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == "★" || kana == "☆" || kana == "◎" || kana == "◆" || kana == "　" || kana == "\0" || kana == "゛" || kana == "゜" {
                 continue;
             }
             let key = keys[row][col];
@@ -477,7 +477,7 @@ pub fn export_tsv(layout: &Layout, path: &Path, colemak: bool) {
     for row in 0..ROWS {
         for col in 0..COLS {
             let kana = layout.layers[4][row][col];
-            if kana == '★' || kana == '☆' || kana == '◎' || kana == '◆' || kana == '　' || kana == '\0' || kana == '゛' || kana == '゜' {
+            if kana == "★" || kana == "☆" || kana == "◎" || kana == "◆" || kana == "　" || kana == "\0" || kana == "゛" || kana == "゜" {
                 continue;
             }
             let key = keys[row][col];
@@ -506,7 +506,7 @@ pub fn export_karabiner(layout: &Layout, path: &Path) {
             let l2 = layout.layers[2][row][col];
 
             // ★キーの処理
-            if l0 == '★' {
+            if l0 == "★" {
                 // Layer 1状態でのキー処理（☆シフト中に★を押した場合）
                 if l1 != '　' && l1 != '\0' && l1 != '★' && l1 != '☆' && l1 != '゛' && l1 != '゜' {
                     if let Some(romaji) = kana_map.get(&l1) {
@@ -543,7 +543,7 @@ pub fn export_karabiner(layout: &Layout, path: &Path) {
             }
 
             // ☆キーの処理
-            if l0 == '☆' {
+            if l0 == "☆" {
                 // Layer 2状態でのキー処理（★シフト中に☆を押した場合）
                 if l2 != '　' && l2 != '\0' && l2 != '★' && l2 != '☆' && l2 != '゛' && l2 != '゜' {
                     if let Some(romaji) = kana_map.get(&l2) {

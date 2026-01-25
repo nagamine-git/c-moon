@@ -86,17 +86,17 @@ impl GeneticAlgorithm {
         }
     }
 
-    /// コーパスの文字リストが全82文字を含むことを保証
+    /// コーパスの文字リストが全140文字を含むことを保証
     /// 欠落している文字はHIRAGANA_FREQ_DEFAULTから補完（末尾に追加）
-    fn ensure_complete_charset(corpus_chars: &[char]) -> Vec<char> {
+    fn ensure_complete_charset(corpus_chars: &[&str]) -> Vec<&str> {
         use std::collections::HashSet;
 
         let mut result = corpus_chars.to_vec();
-        let existing: HashSet<char> = result.iter().copied().collect();
+        let existing: HashSet<&str> = result.iter().copied().collect();
 
         // デフォルトリストから欠落文字を探して末尾に追加
         for &c in HIRAGANA_FREQ_DEFAULT {
-            if !existing.contains(&c) {
+            if !existing.contains(c) {
                 result.push(c);
             }
         }
