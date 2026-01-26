@@ -23,13 +23,13 @@ pub struct EvaluationWeights {
     pub home_position: f64,        // ホームポジション率
     pub total_keystrokes: f64,     // 総打鍵数の少なさ
     pub alternating: f64,          // 左右交互打鍵率
-    pub colemak_similarity: f64,   // Colemak類似度
+    pub position_cost: f64,        // 位置別コスト（Layer3ペナルティ含む）
 
     // Bonus Metrics（加算）- その他全て
     pub single_key: f64,           // 単打鍵率
-    pub position_cost: f64,        // 位置別コスト
     pub redirect_low: f64,         // リダイレクト少なさ
     pub tsuki_similarity: f64,     // 月配列類似度
+    pub colemak_similarity: f64,   // Colemak類似度
     pub roll: f64,                 // ロール率
     pub inroll: f64,               // インロール率
     pub arpeggio: f64,             // アルペジオ率
@@ -40,24 +40,24 @@ pub struct EvaluationWeights {
 impl Default for EvaluationWeights {
     fn default() -> Self {
         Self {
-            // Core（乗算・指数）- 基本6指標
-            same_finger: 1.7,        // 同指連続率の低さ
-            row_skip: 1.6,           // 段越えの少なさ
-            home_position: 1.5,      // ホームポジション率
-            total_keystrokes: 1.4,   // 総打鍵数の少なさ
-            alternating: 1.3,        // 左右交互打鍵率
-            colemak_similarity: 1.2, // Colemak類似度（Core昇格）
+            // Core（乗算・指数）- 基本6指標（順序: 打鍵>位置>同指>段越>交互>ホーム）
+            total_keystrokes: 4096.0, // 総打鍵数の少なさ
+            same_finger: 16.0,        // 同指連続率の低さ
+            row_skip: 4.0,           // 段越えの少なさ
+            position_cost: 256.0,    // 位置別コスト
+            alternating: 2.0,        // 左右交互打鍵率
+            home_position: 1.0,      // ホームポジション率
 
             // Bonus（加算）- その他全て
-            single_key: 2.0,         // 単打鍵率
-            position_cost: 8.0,      // 位置別コスト（高比重Bonus）
-            redirect_low: 5.0,       // リダイレクト少なさ（高比重Bonus）
-            tsuki_similarity: 2.0,   // 月配列類似度
-            roll: 6.0,               // ロール率（高比重Bonus）
-            inroll: 5.0,             // インロール率（高比重Bonus）
-            arpeggio: 5.0,           // アルペジオ率（高比重Bonus）
-            memorability: 2.0,       // 覚えやすさ
-            shift_balance: 3.0,      // シフトバランス
+            single_key: 4.0,         // 単打鍵率
+            redirect_low: 5.0,       // リダイレクト少なさ
+            tsuki_similarity: 1.0,   // 月配列類似度（最軽）
+            colemak_similarity: 2.0, // Colemak類似度
+            roll: 8.0,               // ロール率
+            inroll: 7.0,             // インロール率
+            arpeggio: 6.0,           // アルペジオ率
+            memorability: 3.0,       // 覚えやすさ
+            shift_balance: 5.0,      // シフトバランス
         }
     }
 }
@@ -111,33 +111,33 @@ impl Evaluator {
         let home_norm = (scores.home_position / 100.0).max(0.01);
         let total_keystrokes_norm = (scores.total_keystrokes / 100.0).max(0.01);
         let alternating_norm = (scores.alternating / 100.0).max(0.01);
-        let colemak_norm = (scores.colemak_similarity / 100.0).max(0.01);
+        let position_cost_norm = (scores.position_cost / 100.0).max(0.01);
 
         let total_core_weight = w.same_finger + w.row_skip + w.home_position
-            + w.total_keystrokes + w.alternating + w.colemak_similarity;
+            + w.total_keystrokes + w.alternating + w.position_cost;
 
         let core_product = same_finger_norm.powf(w.same_finger)
             * row_skip_norm.powf(w.row_skip)
             * home_norm.powf(w.home_position)
             * total_keystrokes_norm.powf(w.total_keystrokes)
             * alternating_norm.powf(w.alternating)
-            * colemak_norm.powf(w.colemak_similarity);
+            * position_cost_norm.powf(w.position_cost);
 
         let core_multiplier = core_product.powf(1.0 / total_core_weight) * 100.0;
 
         // Bonus metrics（加算）- その他全て
         let additive_bonus = scores.single_key * w.single_key
-            + scores.position_cost * w.position_cost
             + scores.redirect_low * w.redirect_low
             + scores.tsuki_similarity * w.tsuki_similarity
+            + scores.colemak_similarity * w.colemak_similarity
             + scores.roll * w.roll
             + scores.inroll * w.inroll
             + scores.arpeggio * w.arpeggio
             + scores.memorability * w.memorability
             + scores.shift_balance * w.shift_balance;
 
-        let bonus_scale = (w.single_key + w.position_cost
-            + w.redirect_low + w.tsuki_similarity + w.roll
+        let bonus_scale = (w.single_key
+            + w.redirect_low + w.tsuki_similarity + w.colemak_similarity + w.roll
             + w.inroll + w.arpeggio + w.memorability + w.shift_balance) * 100.0;
 
         // Final: core × (1 + bonus/scale)

@@ -1,4 +1,6 @@
 use kana_layout_optimizer::layout::{Layout, HIRAGANA_FREQ_DEFAULT, cols_for_row, NUM_LAYERS, ROWS};
+use kana_layout_optimizer::export::export_analyzer_json;
+use std::path::Path;
 
 fn main() {
     println!("=== 新月配列 v2.0 テスト（4層版）===\n");
@@ -76,4 +78,10 @@ fn main() {
     // 検証
     let result = layout.validate(HIRAGANA_FREQ_DEFAULT);
     result.print_report();
+
+    // Analyzer JSON出力
+    let output_path = Path::new("shingetsu_3_4_analyzer.json");
+    export_analyzer_json(&layout, output_path);
+    println!("\n=== Export ===");
+    println!("  Analyzer JSON: {:?}", output_path);
 }

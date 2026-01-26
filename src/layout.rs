@@ -53,7 +53,7 @@ pub const POSITION_COSTS_L1: [[f64; COLS_ROW1]; ROWS] = [
     // Row 1 (11 cols): ・=col10
     [4.4, 2.9, 2.9, 2.9, 7.1, 7.1, 2.9, 5.8, 5.8, 8.7, 0.0],
     // Row 2 (10 cols)
-    [10.9, 8.2, 7.1, 5.8, 11.2, 8.7, 5.8, 21.3, 16.4, 21.7, 0.0],
+    [10.9, 8.2, 7.1, 5.8, 11.2, 8.7, 5.8, 21.0, 16.0, 21.7, 0.0],
 ];
 
 pub const POSITION_COSTS_L2: [[f64; COLS_ROW1]; ROWS] = [
@@ -281,13 +281,13 @@ impl Layout {
 
         // Layer 0 (No Shift)
         // Row 0: 10 cols
-        layers[0][0] = vec!["あ", "と", "に", "る", "を", "ち", "こ", "く", "て", "さ"]
+        layers[0][0] = vec!["あ", "と", "が", "は", "を", "ち", "こ", "く", "て", "さ"]
             .iter().map(|s| s.to_string()).collect();
         // Row 1: 11 cols (★=col2, ☆=col7, ー=col10)
         layers[0][1] = vec!["か", "う", "★", "し", "た", "き", "ん", "☆", "い", "の", "ー"]
             .iter().map(|s| s.to_string()).collect();
         // Row 2: 10 cols (、=col7, 。=col8, ◆=col9)
-        layers[0][2] = vec!["れ", "で", "が", "な", "だ", "ら", "は", "、", "。", "◆"]
+        layers[0][2] = vec!["れ", "で", "に", "な", "だ", "ら", "る", "、", "。", "◆"]
             .iter().map(|s| s.to_string()).collect();
 
         // Layer 1 (☆シフト) - row1,col7で発動
@@ -295,21 +295,21 @@ impl Layout {
         layers[1][0] = vec!["べ", "ど", "わ", "しゅ", "ぐ", "ぞ", "ぎ", "ぽ", "きゅ", "ぺ"]
             .iter().map(|s| s.to_string()).collect();
         // Row 1: 11 cols (・=col10)
-        layers[1][1] = vec!["せ", "じ", "す", "つ", "ぶ", "ふ", "っ", "ほ", "ろ", "ざ", "・"]
+        layers[1][1] = vec!["せ", "じ", "す", "つ", "ぶ", "ふ", "っ", "ほ", "み", "ざ", "・"]
             .iter().map(|s| s.to_string()).collect();
         // Row 2: 10 cols
-        layers[1][2] = vec!["じゅ", "ず", "む", "ひ", "ぷ", "び", "み", "にゅ", "ちゅ", "ぬ"]
+        layers[1][2] = vec!["じゅ", "ず", "む", "ひ", "ぷ", "び", "え", "にゅ", "ちゅ", "ぬ"]
             .iter().map(|s| s.to_string()).collect();
 
         // Layer 2 (★シフト) - row1,col2で発動
         // Row 0: 10 cols
         layers[2][0] = vec!["りゅ", "ぱ", "ぃ", "げ", "ぜ", "りょ", "ご", "や", "め", "ゆ"]
             .iter().map(|s| s.to_string()).collect();
-        // Row 1: 11 cols (blank=col10)
-        layers[2][1] = vec!["ちょ", "そ", "よ", "も", "ね", "しょ", "ま", "り", "お", "け", "　"]
+        // Row 1: 11 cols (col10='でもblank位置)
+        layers[2][1] = vec!["ちょ", "そ", "よ", "も", "ね", "しょ", "ま", "り", "お", "け", "'"]
             .iter().map(|s| s.to_string()).collect();
         // Row 2: 10 cols
-        layers[2][2] = vec!["きゃ", "ぎょ", "ひょ", "ば", "ぼ", "しゃ", "え", "じょ", "きょ", "へ"]
+        layers[2][2] = vec!["きゃ", "ぎょ", "ひょ", "ば", "ぼ", "しゃ", "ろ", "じょ", "きょ", "へ"]
             .iter().map(|s| s.to_string()).collect();
 
         // Layer 3 (◆シフト) - row2,col9で発動

@@ -97,64 +97,64 @@ struct Args {
     // ========================================
     // 評価重みオプション
     // ========================================
-    /// Weight: 同指連続率の低さ（SFB排除45%）
-    #[arg(long, default_value_t = 2.2)]
+    /// Weight: 同指連続率の低さ（Core）
+    #[arg(long, default_value_t = 16.0)]
     w_same_finger: f64,
 
-    /// Weight: 段越えの少なさ
-    #[arg(long, default_value_t = 1.55)]
+    /// Weight: 段越えの少なさ（Core）
+    #[arg(long, default_value_t = 4.0)]
     w_row_skip: f64,
 
-    /// Weight: ホームポジション率
-    #[arg(long, default_value_t = 1.3)]
+    /// Weight: ホームポジション率（Core）
+    #[arg(long, default_value_t = 1.0)]
     w_home_position: f64,
 
-    /// Weight: 総打鍵コスト
-    #[arg(long, default_value_t = 1.05)]
+    /// Weight: 総打鍵数の少なさ（Core）
+    #[arg(long, default_value_t = 4096.0)]
     w_total_keystrokes: f64,
 
-    /// Weight: 左右交互打鍵率（統計的交互打鍵25%）
-    #[arg(long, default_value_t = 1.1)]
+    /// Weight: 左右交互打鍵率（Core）
+    #[arg(long, default_value_t = 2.0)]
     w_alternating: f64,
 
-    /// Weight: 単打鍵率
-    #[arg(long, default_value_t = 0.7)]
+    /// Weight: 単打鍵率（Bonus）
+    #[arg(long, default_value_t = 4.0)]
     w_single_key: f64,
 
-    /// Weight: Colemak類似度（弱めCore）
-    #[arg(long, default_value_t = 0.4)]
+    /// Weight: Colemak類似度（Bonus）
+    #[arg(long, default_value_t = 2.0)]
     w_colemak_similarity: f64,
 
-    /// Weight: リダイレクト少
+    /// Weight: リダイレクト少なさ（Bonus）
     #[arg(long, default_value_t = 5.0)]
     w_redirect_low: f64,
 
-    /// Weight: 月配列類似度（弱めBonus）
-    #[arg(long, default_value_t = 2.0)]
+    /// Weight: 月配列類似度（Bonus・最軽）
+    #[arg(long, default_value_t = 1.0)]
     w_tsuki_similarity: f64,
 
-    /// Weight: 位置別コスト（Core昇格・最強）
-    #[arg(long, default_value_t = 2.5)]
+    /// Weight: 位置別コスト（Core）
+    #[arg(long, default_value_t = 256.0)]
     w_position_cost: f64,
 
-    /// Weight: ロール率（アルペジオ調和15%）
-    #[arg(long, default_value_t = 6.0)]
+    /// Weight: ロール率（Bonus）
+    #[arg(long, default_value_t = 8.0)]
     w_roll: f64,
 
-    /// Weight: インロール率（内向きロール優遇）
-    #[arg(long, default_value_t = 6.0)]
+    /// Weight: インロール率（Bonus）
+    #[arg(long, default_value_t = 7.0)]
     w_inroll: f64,
 
-    /// Weight: アルペジオ率（片手連打の質）
+    /// Weight: アルペジオ率（Bonus）
     #[arg(long, default_value_t = 6.0)]
     w_arpeggio: f64,
 
-    /// Weight: 覚えやすさ
-    #[arg(long, default_value_t = 2.0)]
+    /// Weight: 覚えやすさ（Bonus）
+    #[arg(long, default_value_t = 3.0)]
     w_memorability: f64,
 
-    /// Weight: シフトバランス
-    #[arg(long, default_value_t = 3.0)]
+    /// Weight: シフトバランス（Bonus）
+    #[arg(long, default_value_t = 5.0)]
     w_shift_balance: f64,
 }
 

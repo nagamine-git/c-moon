@@ -742,32 +742,41 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
         )));
 
-        // Core計算式（基本6指標）
-        left_lines.push(Line::from(format!("同指連続低: {:.1}%^{:.1}={:.3}",
-            s.same_finger, w.same_finger, (s.same_finger/100.0).powf(w.same_finger))));
-        left_lines.push(Line::from(format!("段越え低: {:.1}%^{:.1}={:.3}",
-            s.row_skip, w.row_skip, (s.row_skip/100.0).powf(w.row_skip))));
-        left_lines.push(Line::from(format!("ホーム率: {:.1}%^{:.1}={:.3}",
-            s.home_position, w.home_position, (s.home_position/100.0).powf(w.home_position))));
-        left_lines.push(Line::from(format!("打鍵少: {:.1}%^{:.1}={:.3}",
-            s.total_keystrokes, w.total_keystrokes, (s.total_keystrokes/100.0).powf(w.total_keystrokes))));
-        left_lines.push(Line::from(format!("左右交互: {:.1}%^{:.1}={:.3}",
-            s.alternating, w.alternating, (s.alternating/100.0).powf(w.alternating))));
-        left_lines.push(Line::from(format!("Colemak: {:.1}%^{:.1}={:.3}",
-            s.colemak_similarity, w.colemak_similarity, (s.colemak_similarity/100.0).powf(w.colemak_similarity))));
+        // Core計算式（基本6指標）- .max(0.01)で0除算防止
+        let sf = (s.same_finger/100.0).max(0.01);
+        let rs = (s.row_skip/100.0).max(0.01);
+        let hp = (s.home_position/100.0).max(0.01);
+        let tk = (s.total_keystrokes/100.0).max(0.01);
+        let alt = (s.alternating/100.0).max(0.01);
+        let pc = (s.position_cost/100.0).max(0.01);
 
-        let core_product = (s.same_finger/100.0).powf(w.same_finger)
-            * (s.row_skip/100.0).powf(w.row_skip)
-            * (s.home_position/100.0).powf(w.home_position)
-            * (s.total_keystrokes/100.0).powf(w.total_keystrokes)
-            * (s.alternating/100.0).powf(w.alternating)
-            * (s.colemak_similarity/100.0).powf(w.colemak_similarity);
+        left_lines.push(Line::from(format!("同指連続低: {:.3}^{:.0}={:.2e}",
+            sf, w.same_finger, sf.powf(w.same_finger))));
+        left_lines.push(Line::from(format!("段越え低: {:.3}^{:.0}={:.2e}",
+            rs, w.row_skip, rs.powf(w.row_skip))));
+        left_lines.push(Line::from(format!("ホーム率: {:.3}^{:.0}={:.2e}",
+            hp, w.home_position, hp.powf(w.home_position))));
+        left_lines.push(Line::from(format!("打鍵少: {:.3}^{:.0}={:.2e}",
+            tk, w.total_keystrokes, tk.powf(w.total_keystrokes))));
+        left_lines.push(Line::from(format!("左右交互: {:.3}^{:.0}={:.2e}",
+            alt, w.alternating, alt.powf(w.alternating))));
+        left_lines.push(Line::from(format!("位置コスト: {:.3}^{:.0}={:.2e}",
+            pc, w.position_cost, pc.powf(w.position_cost))));
+
+        let core_product = sf.powf(w.same_finger)
+            * rs.powf(w.row_skip)
+            * hp.powf(w.home_position)
+            * tk.powf(w.total_keystrokes)
+            * alt.powf(w.alternating)
+            * pc.powf(w.position_cost);
         let total_weight = w.same_finger + w.row_skip + w.home_position
-            + w.total_keystrokes + w.alternating + w.colemak_similarity;
+            + w.total_keystrokes + w.alternating + w.position_cost;
         let core_mult = core_product.powf(1.0 / total_weight) * 100.0;
         
         left_lines.push(Line::from(""));
-        left_lines.push(Line::from(format!("→Core総合: {:.4}", core_mult)));
+        left_lines.push(Line::from(format!("積={:.2e}, 重み計={:.0}", core_product, total_weight)));
+        left_lines.push(Line::from(format!("→Core: ({:.2e})^(1/{:.0})*100={:.4}",
+            core_product, total_weight, core_mult)));
         
         // Bonus計算式
         left_lines.push(Line::from(""));
@@ -777,12 +786,12 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
         )));
         left_lines.push(Line::from(format!("単打率: {:.1}×{:.1}={:.1}",
             s.single_key, w.single_key, s.single_key * w.single_key)));
-        left_lines.push(Line::from(format!("位置コスト: {:.1}×{:.1}={:.1}",
-            s.position_cost, w.position_cost, s.position_cost * w.position_cost)));
         left_lines.push(Line::from(format!("リダイレクト低: {:.1}×{:.1}={:.1}",
             s.redirect_low, w.redirect_low, s.redirect_low * w.redirect_low)));
         left_lines.push(Line::from(format!("月類似: {:.1}×{:.1}={:.1}",
             s.tsuki_similarity, w.tsuki_similarity, s.tsuki_similarity * w.tsuki_similarity)));
+        left_lines.push(Line::from(format!("Colemak: {:.1}×{:.1}={:.1}",
+            s.colemak_similarity, w.colemak_similarity, s.colemak_similarity * w.colemak_similarity)));
         left_lines.push(Line::from(format!("ロール: {:.1}×{:.1}={:.1}",
             s.roll, w.roll, s.roll * w.roll)));
         left_lines.push(Line::from(format!("インロール: {:.1}×{:.1}={:.1}",
@@ -795,16 +804,16 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             s.shift_balance, w.shift_balance, s.shift_balance * w.shift_balance)));
 
         let additive_bonus = s.single_key * w.single_key
-            + s.position_cost * w.position_cost
             + s.redirect_low * w.redirect_low
             + s.tsuki_similarity * w.tsuki_similarity
+            + s.colemak_similarity * w.colemak_similarity
             + s.roll * w.roll
             + s.inroll * w.inroll
             + s.arpeggio * w.arpeggio
             + s.memorability * w.memorability
             + s.shift_balance * w.shift_balance;
-        let bonus_scale = (w.single_key + w.position_cost
-            + w.redirect_low + w.tsuki_similarity + w.roll
+        let bonus_scale = (w.single_key
+            + w.redirect_low + w.tsuki_similarity + w.colemak_similarity + w.roll
             + w.inroll + w.arpeggio + w.memorability + w.shift_balance) * 100.0;
         
         left_lines.push(Line::from(""));
@@ -815,11 +824,22 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
         let final_fitness = core_mult * (1.0 + additive_bonus / bonus_scale);
         left_lines.push(Line::from(""));
         left_lines.push(Line::from(Span::styled(
-            format!("■ Final: {:.4}", final_fitness),
+            format!("■ Final(計算): {:.4}", final_fitness),
             Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
         )));
         left_lines.push(Line::from(format!("{:.2}×(1+{:.4})={:.4}",
             core_mult, additive_bonus/bonus_scale, final_fitness)));
+        // 実際に保存されているfitness値との比較
+        left_lines.push(Line::from(Span::styled(
+            format!("■ Stored fitness: {:.4}", layout.fitness),
+            Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+        )));
+        if (final_fitness - layout.fitness).abs() > 0.01 {
+            left_lines.push(Line::from(Span::styled(
+                format!("⚠ 差分: {:.4}", final_fitness - layout.fitness),
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            )));
+        }
         
         // ========== 右カラム ==========
         right_lines.push(Line::from(Span::styled(
@@ -1189,8 +1209,8 @@ fn render_scores_and_weights(f: &mut Frame, area: Rect, state: &TuiState) {
             s.alternating, weights.alternating
         )));
         lines.push(Line::from(format!(
-            "Colemak:    {:.1}% ^{:.1}",
-            s.colemak_similarity, weights.colemak_similarity
+            "位置コスト: {:.1}% ^{:.1}",
+            s.position_cost, weights.position_cost
         )));
 
         lines.push(Line::from(""));
@@ -1206,8 +1226,8 @@ fn render_scores_and_weights(f: &mut Frame, area: Rect, state: &TuiState) {
             s.single_key, weights.single_key
         )));
         lines.push(Line::from(format!(
-            "位置コスト: {:.1}% ×{:.1}",
-            s.position_cost, weights.position_cost
+            "Colemak:    {:.1}% ×{:.1}",
+            s.colemak_similarity, weights.colemak_similarity
         )));
         lines.push(Line::from(format!(
             "ロール:     {:.1}% ×{:.1}",
