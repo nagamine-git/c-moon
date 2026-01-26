@@ -1,28 +1,24 @@
-use kana_layout_optimizer::layout::Layout;
-use rand::SeedableRng;
-use rand_chacha::ChaCha8Rng;
+use kana_layout_optimizer::layout::{Layout, HIRAGANA_FREQ_DEFAULT};
 
 fn main() {
     println!("=== 新月配列 v2.0 テスト ===\n");
 
-    // シード固定でランダム配列を生成
-    let mut rng = ChaCha8Rng::seed_from_u64(42);
-    let layout = Layout::random(&mut rng);
+    // 初期配列を表示
+    let layout = Layout::improved_custom();
 
-    println!("生成された配列（5層）:\n");
+    println!("初期配列（5層）:\n");
 
     for layer in 0..5 {
         let layer_name = match layer {
-            0 => "Layer 0 (無シフト)",
-            1 => "Layer 1 (☆シフト・右中指)",
-            2 => "Layer 2 (★シフト・左中指)",
-            3 => "Layer 3 (◎シフト・右薬指)",
-            4 => "Layer 4 (◆シフト・左薬指)",
+            0 => "Layer 0 (No Shift)",
+            1 => "Layer 1 (A shift)",
+            2 => "Layer 2 (B shift)",
+            3 => "Layer 3 (C shift)",
+            4 => "Layer 4 (D shift)",
             _ => "Unknown",
         };
 
         println!("## {}", layer_name);
-        println!("```");
         for row in 0..3 {
             print!("  ");
             for col in 0..10 {
@@ -36,30 +32,46 @@ fn main() {
             }
             println!();
         }
-        println!("```\n");
+        println!();
     }
 
     // 統計情報
     let mut gram1_count = 0;
     let mut gram2_count = 0;
+    let mut blank_count = 0;
+    let mut fixed_count = 0;
+
+    let fixed_chars = ["☆", "★", "◎", "◆", "、", "。", "・", "ー", ";"];
 
     for layer in 0..5 {
         for row in 0..3 {
             for col in 0..10 {
                 let c = &layout.layers[layer][row][col];
-                if c != "　" && c != "★" && c != "☆" && c != "◎" && c != "◆" && c != "、" && c != "。" && c != "；" && c != "・" {
-                    if c.chars().count() == 1 {
-                        gram1_count += 1;
-                    } else if c.chars().count() == 2 {
-                        gram2_count += 1;
-                    }
+                if c == "　" {
+                    blank_count += 1;
+                } else if fixed_chars.contains(&c.as_str()) {
+                    fixed_count += 1;
+                } else if c.chars().count() == 1 {
+                    gram1_count += 1;
+                } else if c.chars().count() == 2 {
+                    gram2_count += 1;
                 }
             }
         }
     }
 
-    println!("統計:");
+    println!("=== 統計 ===");
     println!("  1gram文字: {}", gram1_count);
     println!("  2gram文字（拗音）: {}", gram2_count);
-    println!("  合計: {}", gram1_count + gram2_count);
+    println!("  配置文字合計: {}", gram1_count + gram2_count);
+    println!("  空白: {}", blank_count);
+    println!("  固定文字: {} (◆,★,☆,◎,、,。,・,ー,;)", fixed_count);
+    println!("  総計: {} (=150)", gram1_count + gram2_count + blank_count + fixed_count);
+
+    println!("\n=== HIRAGANA_FREQ_DEFAULT ===");
+    println!("  文字数: {}", HIRAGANA_FREQ_DEFAULT.len());
+
+    // 検証
+    let result = layout.validate(HIRAGANA_FREQ_DEFAULT);
+    result.print_report();
 }

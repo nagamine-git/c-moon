@@ -35,6 +35,14 @@ pub struct TuiState {
     pub corpus_stats: Option<Arc<CorpusStats>>,
     pub running: bool,
     pub debug: bool,
+    /// マルチラン用: 各ランの状態 (run_id, fitness, layout)
+    pub multi_run_states: Vec<(usize, f64, Option<KeyboardLayout>)>,
+    /// マルチランモードかどうか
+    pub multi_run_mode: bool,
+    /// 完了したラン数
+    pub completed_runs: usize,
+    /// 総ラン数
+    pub total_runs: usize,
 }
 
 impl TuiState {
@@ -53,6 +61,35 @@ impl TuiState {
             corpus_stats,
             running: true,
             debug,
+            multi_run_states: Vec::new(),
+            multi_run_mode: false,
+            completed_runs: 0,
+            total_runs: 0,
+        }
+    }
+
+    /// マルチランモードを有効化
+    pub fn enable_multi_run(&mut self, total_runs: usize) {
+        self.multi_run_mode = true;
+        self.total_runs = total_runs;
+        self.multi_run_states = (0..total_runs.min(4))
+            .map(|i| (i, 0.0, None))
+            .collect();
+    }
+
+    /// マルチランの状態を更新
+    pub fn update_multi_run(&mut self, run_id: usize, fitness: f64, layout: &KeyboardLayout) {
+        if run_id < self.multi_run_states.len() {
+            let current = &mut self.multi_run_states[run_id];
+            if fitness > current.1 {
+                current.1 = fitness;
+                current.2 = Some(layout.clone());
+            }
+        }
+        // 全体のベストも更新
+        if fitness > self.best_fitness {
+            self.best_fitness = fitness;
+            self.best_layout = Some(layout.clone());
         }
     }
     
@@ -89,6 +126,12 @@ impl TuiApp {
     /// TUIを描画
     pub fn draw(&mut self, state: &TuiState) -> io::Result<()> {
         self.terminal.draw(|f| {
+            // マルチランモードの場合は4面表示
+            if state.multi_run_mode && state.debug {
+                render_multi_run_debug(f, state);
+                return;
+            }
+
             let main_chunks = if state.debug {
                 // デバッグモード: 上部を圧縮、下部を拡大
                 Layout::default()
@@ -268,6 +311,106 @@ fn render_graph(f: &mut Frame, area: Rect, state: &TuiState) {
     f.render_widget(chart, area);
 }
 
+/// マルチラン用4面デバッグ表示
+fn render_multi_run_debug(f: &mut Frame, state: &TuiState) {
+    let main_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints([
+            Constraint::Length(3),   // Progress bar
+            Constraint::Min(30),     // 4面表示
+        ])
+        .split(f.area());
+
+    // プログレスバー（マルチラン用）
+    let progress_text = format!(
+        "Multi-Run: {}/{} completed | Gen: {} | Best: {:.4}",
+        state.completed_runs, state.total_runs, state.generation, state.best_fitness
+    );
+    let gauge = Gauge::default()
+        .block(Block::default().borders(Borders::ALL).title("Progress"))
+        .gauge_style(Style::default().fg(Color::Cyan))
+        .ratio(state.generation as f64 / state.max_generations as f64)
+        .label(progress_text);
+    f.render_widget(gauge, main_layout[0]);
+
+    // 4面グリッド（2x2）
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(main_layout[1]);
+
+    let top_cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(rows[0]);
+
+    let bottom_cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(rows[1]);
+
+    let panels = [top_cols[0], top_cols[1], bottom_cols[0], bottom_cols[1]];
+
+    for (i, &panel_area) in panels.iter().enumerate() {
+        if i < state.multi_run_states.len() {
+            let (run_id, fitness, ref layout_opt) = &state.multi_run_states[i];
+            render_multi_run_panel(f, panel_area, *run_id, *fitness, layout_opt.as_ref());
+        } else {
+            // 空パネル
+            let block = Block::default()
+                .borders(Borders::ALL)
+                .title(format!("Run {} (waiting)", i));
+            f.render_widget(block, panel_area);
+        }
+    }
+}
+
+/// マルチラン用パネル描画
+fn render_multi_run_panel(f: &mut Frame, area: Rect, run_id: usize, fitness: f64, layout: Option<&KeyboardLayout>) {
+    let title = format!("Run {} | Fitness: {:.4}", run_id, fitness);
+
+    let layout = match layout {
+        Some(l) => l,
+        None => {
+            let block = Block::default()
+                .borders(Borders::ALL)
+                .title(title);
+            f.render_widget(block, area);
+            return;
+        }
+    };
+
+    let mut lines: Vec<Line> = vec![];
+
+    // 5層を圧縮表示（各レイヤー1行）
+    let layer_names = ["L0", "L1(A)", "L2(B)", "L3(C)", "L4(D)"];
+    for (layer_idx, layer_name) in layer_names.iter().enumerate() {
+        // 中段のみ表示（圧縮のため）
+        let row_str: String = layout.layers[layer_idx][1]
+            .iter()
+            .map(|s| {
+                if s == "　" {
+                    "□"
+                } else if s.chars().count() > 1 {
+                    // 2gram は最初の文字のみ
+                    &s[..s.chars().next().unwrap().len_utf8()]
+                } else {
+                    s.as_str()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("");
+        lines.push(Line::from(format!("{}: {}", layer_name, row_str)));
+    }
+
+    let paragraph = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title(title))
+        .wrap(Wrap { trim: false });
+
+    f.render_widget(paragraph, area);
+}
+
 /// キーボード配列を描画
 fn render_keyboard(f: &mut Frame, area: Rect, state: &TuiState) {
     let layout = match &state.best_layout {
@@ -290,10 +433,16 @@ fn render_keyboard(f: &mut Frame, area: Rect, state: &TuiState) {
 
     lines.push(Line::from(""));
 
-    for (layer_idx, layer_name) in ["Layer 0 (無シフト)", "Layer 1 (☆)", "Layer 2 (★)"]
-        .iter()
-        .enumerate()
-    {
+    // 5層すべてを表示
+    let layer_names = [
+        "Layer 0 (無シフト)",
+        "Layer 1 (A)",
+        "Layer 2 (B)",
+        "Layer 3 (C)",
+        "Layer 4 (D)",
+    ];
+
+    for (layer_idx, layer_name) in layer_names.iter().enumerate() {
         lines.push(Line::from(Span::styled(
             format!("{}:", layer_name),
             Style::default().fg(Color::Cyan),
@@ -302,10 +451,10 @@ fn render_keyboard(f: &mut Frame, area: Rect, state: &TuiState) {
         for row in 0..3 {
             let row_str: String = layout.layers[layer_idx][row]
                 .iter()
-                .map(|&c| if c == '　' { '□' } else { c })
+                .map(|s| if s == "　" { "□".to_string() } else { s.clone() })
                 .collect::<Vec<_>>()
                 .iter()
-                .map(|c| format!("{} ", c))
+                .map(|s| format!("{} ", s))
                 .collect();
             lines.push(Line::from(format!("  {}", row_str)));
         }
@@ -322,83 +471,90 @@ fn render_keyboard(f: &mut Frame, area: Rect, state: &TuiState) {
 }
 
 /// Colemak一致詳細を計算（評価関数と同じロジック）
-fn calc_colemak_match_detail(layers: &[[[char; 10]; 3]; 5]) -> (usize, usize, usize) {
+/// 戻り値: (perfect, partial, total, layer別perfect配列)
+fn calc_colemak_match_detail(layers: &Vec<Vec<Vec<String>>>) -> (usize, usize, usize, [usize; 5]) {
     use crate::layout::{romaji_phonemes, COLEMAK_POSITIONS};
     use std::collections::HashMap;
-    
+
     // COLEMAK_POSITIONSから音素→位置のマップを作成
     let mut phoneme_pos: HashMap<&str, (usize, usize)> = HashMap::new();
     for &(phoneme, row, col) in COLEMAK_POSITIONS {
         phoneme_pos.insert(phoneme, (row, col));
     }
-    
-    let mut perfect = 0;  // 完全一致（両音素とも位置一致）
-    let mut partial = 0;  // 部分一致（片方のみ一致または行/手一致）
+
+    let mut perfect = 0; // 完全一致（両音素とも位置一致）
+    let mut partial = 0; // 部分一致（片方のみ一致または行/手一致）
     let mut total = 0;
-    
-    // 評価関数と同じく全レイヤーを評価（Layer 0重視）
-    for layer in 0..3 {
-        let layer_weight = if layer == 0 { 1.0 } else { 0.3 };
-        
+    let mut layer_perfect = [0usize; 5]; // 各レイヤーのperfect数
+
+    // 全5レイヤーを評価
+    for layer in 0..5.min(layers.len()) {
         for row in 0..3 {
             for col in 0..10 {
-                let c = layers[layer][row][col];
-                
+                let s = &layers[layer][row][col];
+                let c = match s.chars().next() {
+                    Some(ch) => ch,
+                    None => continue,
+                };
+
                 // 除外文字
-                if c == '☆' || c == '★' || c == '、' || c == '。' || c == '　' ||
-                   c == 'ー' || c == 'っ' || c == 'ゃ' || c == 'ゅ' || c == 'ょ' ||
-                   c == 'ぁ' || c == 'ぃ' || c == 'ぅ' || c == 'ぇ' || c == 'ぉ' ||
-                   c == '゛' || c == '゜' {
+                if matches!(
+                    c,
+                    'A' | 'B' | 'C' | 'D' | '☆' | '★' | '◎' | '◆' | '、' | '。' | '　'
+                        | 'ー' | 'っ' | 'ゃ' | 'ゅ' | 'ょ' | 'ぁ' | 'ぃ' | 'ぅ' | 'ぇ'
+                        | 'ぉ' | '゛' | '゜'
+                ) {
                     continue;
                 }
-                
+
                 let (consonant, vowel) = romaji_phonemes(c);
-                
+
                 // 音素がない文字はスキップ
                 if consonant.is_none() && vowel.is_none() {
                     continue;
                 }
-                
+
                 total += 1;
-                
+
                 let mut cons_score = 0.0;
                 let mut vowel_score = 0.0;
-                
+
                 // 子音チェック
                 if let Some(cons) = consonant {
                     if let Some(&(exp_row, exp_col)) = phoneme_pos.get(cons) {
                         if row == exp_row && col == exp_col {
-                            cons_score = 1.0;  // 完全一致
+                            cons_score = 1.0; // 完全一致
                         } else if row == exp_row {
-                            cons_score = 0.5;  // 行一致
+                            cons_score = 0.5; // 行一致
                         } else if (col < 5 && exp_col < 5) || (col >= 5 && exp_col >= 5) {
                             cons_score = 0.25; // 手一致
                         }
                     }
                 }
-                
+
                 // 母音チェック
                 if let Some(vow) = vowel {
                     if let Some(&(exp_row, exp_col)) = phoneme_pos.get(vow) {
                         if row == exp_row && col == exp_col {
-                            vowel_score = 1.0;  // 完全一致
+                            vowel_score = 1.0; // 完全一致
                         } else if row == exp_row {
-                            vowel_score = 0.5;  // 行一致
+                            vowel_score = 0.5; // 行一致
                         } else if (col < 5 && exp_col < 5) || (col >= 5 && exp_col >= 5) {
                             vowel_score = 0.25; // 手一致
                         }
                     }
                 }
-                
+
                 // スコアリング
                 // 音素の種類で判定を分岐
                 let is_vowel_only = consonant.is_none() && vowel.is_some();
                 let is_consonant_only = consonant.is_some() && vowel.is_none();
-                
+
                 if is_vowel_only {
                     // 母音のみ（あいうえお）：完全一致なら◎、行一致以上で○
                     if vowel_score >= 1.0 {
                         perfect += 1;
+                        layer_perfect[layer] += 1;
                     } else if vowel_score >= 0.5 {
                         partial += 1;
                     }
@@ -406,6 +562,7 @@ fn calc_colemak_match_detail(layers: &[[[char; 10]; 3]; 5]) -> (usize, usize, us
                     // 子音のみ（ん）：完全一致なら◎、行一致以上で○
                     if cons_score >= 1.0 {
                         perfect += 1;
+                        layer_perfect[layer] += 1;
                     } else if cons_score >= 0.5 {
                         partial += 1;
                     }
@@ -413,9 +570,10 @@ fn calc_colemak_match_detail(layers: &[[[char; 10]; 3]; 5]) -> (usize, usize, us
                     // 子音+母音：両方完全一致で◎、どちらか完全一致で○
                     let has_perfect_match = cons_score >= 1.0 || vowel_score >= 1.0;
                     let total_score = cons_score + vowel_score;
-                    
+
                     if total_score >= 1.8 {
                         perfect += 1;
+                        layer_perfect[layer] += 1;
                     } else if has_perfect_match {
                         partial += 1;
                     }
@@ -423,13 +581,15 @@ fn calc_colemak_match_detail(layers: &[[[char; 10]; 3]; 5]) -> (usize, usize, us
             }
         }
     }
-    
-    (perfect, partial, total)
+
+    (perfect, partial, total, layer_perfect)
 }
 
 /// 月配列一致詳細を計算（ヘルパー関数）
-/// 戻り値: (L0一致, L0総数, L1一致, L1総数, L2一致, L2総数)
-fn calc_tsuki_match_detail(layers: &[[[char; 10]; 3]; 5]) -> (usize, usize, usize, usize, usize, usize) {
+/// 戻り値: 各レイヤーの(一致数, 総数)の配列 [5]
+fn calc_tsuki_match_detail(
+    layers: &Vec<Vec<Vec<String>>>,
+) -> [(usize, usize); 5] {
     // 月配列: Layer 0 = 表面, Layer 1 = 裏面
     let tsuki_layers = [
         [
@@ -444,49 +604,40 @@ fn calc_tsuki_match_detail(layers: &[[[char; 10]; 3]; 5]) -> (usize, usize, usiz
         ],
     ];
 
-    let mut l0_matched = 0;
-    let mut l0_total = 0;
-    let mut l1_matched = 0;
-    let mut l1_total = 0;
-    let mut l2_matched = 0;
-    let mut l2_total = 0;
+    let mut result = [(0usize, 0usize); 5];
 
-    for ga_layer in 0..3 {
+    for ga_layer in 0..5.min(layers.len()) {
         // GA Layer 0 → 月 Layer 0（表面）
-        // GA Layer 1, 2 → 月 Layer 1（裏面）
+        // GA Layer 1,2,3,4 → 月 Layer 1（裏面）
         let tsuki_layer = if ga_layer == 0 { 0 } else { 1 };
 
         for row in 0..3 {
             for col in 0..10 {
-                let kana = layers[ga_layer][row][col];
+                let s = &layers[ga_layer][row][col];
+                let kana = match s.chars().next() {
+                    Some(ch) => ch,
+                    None => continue,
+                };
                 let tsuki_char = tsuki_layers[tsuki_layer][row][col];
 
-                if kana == '★' || kana == '☆' || kana == '、' || kana == '。' || kana == '　' ||
-                   tsuki_char == '★' || tsuki_char == '☆' || tsuki_char == '、' || tsuki_char == '。' ||
-                   tsuki_char == '゛' || tsuki_char == '゜' || tsuki_char == '　' {
+                if matches!(
+                    kana,
+                    'A' | 'B' | 'C' | 'D' | '★' | '☆' | '◎' | '◆' | '、' | '。' | '　'
+                ) || matches!(
+                    tsuki_char,
+                    '★' | '☆' | '、' | '。' | '゛' | '゜' | '　'
+                ) {
                     continue;
                 }
 
-                let is_match = kana == tsuki_char;
-                match ga_layer {
-                    0 => {
-                        l0_total += 1;
-                        if is_match { l0_matched += 1; }
-                    }
-                    1 => {
-                        l1_total += 1;
-                        if is_match { l1_matched += 1; }
-                    }
-                    2 => {
-                        l2_total += 1;
-                        if is_match { l2_matched += 1; }
-                    }
-                    _ => {}
+                result[ga_layer].1 += 1; // total
+                if kana == tsuki_char {
+                    result[ga_layer].0 += 1; // matched
                 }
             }
         }
     }
-    (l0_matched, l0_total, l1_matched, l1_total, l2_matched, l2_total)
+    result
 }
 
 /// キーごとの位置コストを計算（評価ロジックと同じ）
@@ -556,24 +707,36 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
         )));
         
-        // Similarity詳細
-        let (colemak_perfect, colemak_partial, colemak_total) = calc_colemak_match_detail(&layers);
+        // Similarity詳細（全5レイヤー）
+        let (colemak_perfect, colemak_partial, colemak_total, colemak_by_layer) = calc_colemak_match_detail(&layers);
         left_lines.push(Line::from(format!(
             "Colemak: {:.1}% (◎{} ○{} ×{})",
             s.colemak_similarity, colemak_perfect, colemak_partial,
             colemak_total - colemak_perfect - colemak_partial
         )));
-        
-        let (l0_m, l0_t, l1_m, l1_t, l2_m, l2_t) = calc_tsuki_match_detail(&layers);
-        let total_match = l0_m + l1_m + l2_m;
-        let total_all = l0_t + l1_t + l2_t;
+        left_lines.push(Line::from(format!(
+            "  L0:{} L1:{} L2:{} L3:{} L4:{}",
+            colemak_by_layer[0], colemak_by_layer[1], colemak_by_layer[2],
+            colemak_by_layer[3], colemak_by_layer[4]
+        )));
+
+        let tsuki_detail = calc_tsuki_match_detail(&layers);
+        let total_match: usize = tsuki_detail.iter().map(|(m, _)| m).sum();
+        let total_all: usize = tsuki_detail.iter().map(|(_, t)| t).sum();
         left_lines.push(Line::from(format!(
             "月配列: {:.1}% (○{}/{})",
             s.tsuki_similarity, total_match, total_all
         )));
         left_lines.push(Line::from(format!(
             "  L0:{}/{} L1:{}/{} L2:{}/{}",
-            l0_m, l0_t, l1_m, l1_t, l2_m, l2_t
+            tsuki_detail[0].0, tsuki_detail[0].1,
+            tsuki_detail[1].0, tsuki_detail[1].1,
+            tsuki_detail[2].0, tsuki_detail[2].1
+        )));
+        left_lines.push(Line::from(format!(
+            "  L3:{}/{} L4:{}/{}",
+            tsuki_detail[3].0, tsuki_detail[3].1,
+            tsuki_detail[4].0, tsuki_detail[4].1
         )));
         
         left_lines.push(Line::from(""));
@@ -680,23 +843,27 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             std::collections::HashMap::new()
         };
         
-        for layer in 0..3 {
+        for layer in 0..3.min(layers.len()) {
             let layer_name = match layer {
-                0 => "L0", 1 => "L1", 2 => "L2", _ => "",
+                0 => "L0",
+                1 => "L1",
+                2 => "L2",
+                _ => "",
             };
             right_lines.push(Line::from(format!("{}:", layer_name)));
-            
+
             for row in 0..3 {
                 let mut row_line = String::new();
-                
+
                 for col in 0..10 {
-                    let kana = layers[layer][row][col];
+                    let kana_str = &layers[layer][row][col];
+                    let kana_char = kana_str.chars().next().unwrap_or('　');
                     let pos = KeyPos::new(layer, row, col);
                     let cost = calc_position_cost_for_key(&pos);
-                    
+
                     // 頻度取得（1-gramから）
-                    let freq = freq_map.get(&kana).copied().unwrap_or(0.0);
-                    
+                    let freq = freq_map.get(&kana_char).copied().unwrap_or(0.0);
+
                     // 頻度を短く表示（k単位）
                     let freq_str = if freq >= 10000.0 {
                         format!("{}k", (freq / 1000.0) as i32)
@@ -707,22 +874,22 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
                     } else {
                         "0".to_string()
                     };
-                    
+
                     // コストをそのまま表示（1-99の範囲）
                     let display_cost = (cost as i32).min(99);
-                    
+
                     // 文字:頻度(コスト) 形式
-                    row_line.push_str(&format!("{}:{}({:>2}) ", kana, freq_str, display_cost));
+                    row_line.push_str(&format!("{}:{}({:>2}) ", kana_str, freq_str, display_cost));
                 }
-                
+
                 right_lines.push(Line::from(format!(" {}", row_line)));
             }
             right_lines.push(Line::from(""));
         }
-        
+
         right_lines.push(Line::from("L0: 上段外側・下段外側"));
-        right_lines.push(Line::from("L1: ☆(col7)上下Ver+27,Out+9"));
-        right_lines.push(Line::from("L2: ★(col2)上下Ver+27,Out+9"));
+        right_lines.push(Line::from("L1: A(col7)上下Ver+27,Out+9"));
+        right_lines.push(Line::from("L2: B(col2)上下Ver+27,Out+9"));
         
         // ========== 中央カラム: キーごと採点 ==========
         center_lines.push(Line::from(Span::styled(
@@ -746,34 +913,46 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
         }
         
         // 全3レイヤーを表示
-        for layer in 0..3 {
+        for layer in 0..3.min(layers.len()) {
             let layer_name = match layer {
-                0 => "L0:", 1 => "L1:", 2 => "L2:", _ => "",
+                0 => "L0:",
+                1 => "L1:",
+                2 => "L2:",
+                _ => "",
             };
             center_lines.push(Line::from(layer_name));
-            
+
             for row in 0..3 {
                 let mut match_line = String::new();
                 for col in 0..10 {
-                    let c = layers[layer][row][col];
-                    
-                    if c == '☆' || c == '★' || c == '、' || c == '。' || c == '　' ||
-                       c == 'ー' || c == 'っ' || c == 'ゃ' || c == 'ゅ' || c == 'ょ' ||
-                       c == 'ぁ' || c == 'ぃ' || c == 'ぅ' || c == 'ぇ' || c == 'ぉ' ||
-                       c == '゛' || c == '゜' {
+                    let s = &layers[layer][row][col];
+                    let c = match s.chars().next() {
+                        Some(ch) => ch,
+                        None => {
+                            match_line.push_str("  ");
+                            continue;
+                        }
+                    };
+
+                    if matches!(
+                        c,
+                        'A' | 'B' | 'C' | 'D' | '☆' | '★' | '◎' | '◆' | '、' | '。' | '　'
+                            | 'ー' | 'っ' | 'ゃ' | 'ゅ' | 'ょ' | 'ぁ' | 'ぃ' | 'ぅ' | 'ぇ'
+                            | 'ぉ' | '゛' | '゜'
+                    ) {
                         match_line.push_str("  ");
                         continue;
                     }
-                    
+
                     let (consonant, vowel) = romaji_phonemes(c);
                     if consonant.is_none() && vowel.is_none() {
                         match_line.push_str("  ");
                         continue;
                     }
-                    
+
                     let mut cons_score = 0.0;
                     let mut vowel_score = 0.0;
-                    
+
                     if let Some(cons) = consonant {
                         if let Some(&(exp_row, exp_col)) = phoneme_pos.get(cons) {
                             if row == exp_row && col == exp_col {
@@ -785,7 +964,7 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
                             }
                         }
                     }
-                    
+
                     if let Some(vow) = vowel {
                         if let Some(&(exp_row, exp_col)) = phoneme_pos.get(vow) {
                             if row == exp_row && col == exp_col {
@@ -797,11 +976,11 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
                             }
                         }
                     }
-                    
+
                     // 音素の種類で判定を分岐
                     let is_vowel_only = consonant.is_none() && vowel.is_some();
                     let is_consonant_only = consonant.is_some() && vowel.is_none();
-                    
+
                     if is_vowel_only {
                         // 母音のみ（あいうえお）：完全一致なら◎、行一致以上で○
                         if vowel_score >= 1.0 {
@@ -824,7 +1003,7 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
                         // 子音+母音：両方完全一致で◎、どちらか完全一致で○
                         let has_perfect_match = cons_score >= 1.0 || vowel_score >= 1.0;
                         let total_score = cons_score + vowel_score;
-                        
+
                         if total_score >= 1.8 {
                             match_line.push('◎');
                         } else if has_perfect_match {
@@ -860,25 +1039,32 @@ fn render_debug_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             ],
         ];
         
-        for layer in 0..2 {
+        for layer in 0..2.min(layers.len()) {
             let layer_name = match layer {
-                0 => "L0", 1 => "L1", _ => "",
+                0 => "L0",
+                1 => "L1",
+                _ => "",
             };
             center_lines.push(Line::from(format!("{}:", layer_name)));
-            
+
             for row in 0..3 {
                 let mut match_line = String::new();
                 for col in 0..10 {
-                    let kana = layers[layer][row][col];
+                    let kana_str = &layers[layer][row][col];
+                    let kana = kana_str.chars().next().unwrap_or('　');
                     let tsuki_char = tsuki_layers[layer][row][col];
-                    
-                    if kana == '★' || kana == '☆' || kana == '、' || kana == '。' || kana == '　' ||
-                       tsuki_char == '★' || tsuki_char == '☆' || tsuki_char == '、' || tsuki_char == '。' ||
-                       tsuki_char == '゛' || tsuki_char == '゜' || tsuki_char == '　' {
+
+                    if matches!(
+                        kana,
+                        'A' | 'B' | 'C' | 'D' | '★' | '☆' | '◎' | '◆' | '、' | '。' | '　'
+                    ) || matches!(
+                        tsuki_char,
+                        '★' | '☆' | '、' | '。' | '゛' | '゜' | '　'
+                    ) {
                         match_line.push_str("  ");
                         continue;
                     }
-                    
+
                     if kana == tsuki_char {
                         match_line.push('○');
                     } else {
@@ -946,21 +1132,34 @@ fn render_scores_and_weights(f: &mut Frame, area: Rect, state: &TuiState) {
             .fg(Color::Green)
             .add_modifier(Modifier::BOLD),
     )));
-    // Colemak一致率の詳細計算
-    let (colemak_perfect, colemak_partial, colemak_total) = calc_colemak_match_detail(&layout.layers);
+    // Colemak一致率の詳細計算（全5レイヤー）
+    let (colemak_perfect, colemak_partial, colemak_total, colemak_by_layer) = calc_colemak_match_detail(&layout.layers);
     lines.push(Line::from(format!(
         "Colemak:    {:.1}% (◎{} ○{} ×{})",
         s.colemak_similarity, colemak_perfect, colemak_partial,
         colemak_total - colemak_perfect - colemak_partial
     )));
-    
-    // 月配列一致率の詳細計算
-    let (l0_m, l0_t, l1_m, l1_t, l2_m, l2_t) = calc_tsuki_match_detail(&layout.layers);
-    let tsuki_match = l0_m + l1_m + l2_m;
-    let tsuki_total = l0_t + l1_t + l2_t;
+    lines.push(Line::from(format!(
+        "  L0:{} L1:{} L2:{} L3:{} L4:{}",
+        colemak_by_layer[0], colemak_by_layer[1], colemak_by_layer[2],
+        colemak_by_layer[3], colemak_by_layer[4]
+    )));
+
+    // 月配列一致率の詳細計算（全5レイヤー）
+    let tsuki_detail = calc_tsuki_match_detail(&layout.layers);
+    let tsuki_match: usize = tsuki_detail.iter().map(|(m, _)| m).sum();
+    let tsuki_total: usize = tsuki_detail.iter().map(|(_, t)| t).sum();
     lines.push(Line::from(format!(
         "月配列:     {:.1}% (○{} ×{})",
         s.tsuki_similarity, tsuki_match, tsuki_total - tsuki_match
+    )));
+    lines.push(Line::from(format!(
+        "  L0:{}/{} L1:{}/{} L2:{}/{} L3:{}/{} L4:{}/{}",
+        tsuki_detail[0].0, tsuki_detail[0].1,
+        tsuki_detail[1].0, tsuki_detail[1].1,
+        tsuki_detail[2].0, tsuki_detail[2].1,
+        tsuki_detail[3].0, tsuki_detail[3].1,
+        tsuki_detail[4].0, tsuki_detail[4].1
     )));
     // 位置コストはCore metricsに移動
 

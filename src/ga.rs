@@ -55,8 +55,8 @@ pub struct GeneticAlgorithm {
     config: GaConfig,
     evaluator: Evaluator,
     rng: ChaCha8Rng,
-    /// コーパスから取得したひらがな頻度順リスト
-    hiragana_chars: Vec<char>,
+    /// コーパスから取得したひらがな頻度順リスト（String型）
+    hiragana_chars: Vec<String>,
 }
 
 impl GeneticAlgorithm {
@@ -64,7 +64,29 @@ impl GeneticAlgorithm {
     pub fn new(corpus: CorpusStats, config: GaConfig) -> Self {
         let rng = ChaCha8Rng::seed_from_u64(config.seed);
         // コーパスから頻度順リストを取得し、欠落文字をデフォルトリストで補完
-        let hiragana_chars = Self::ensure_complete_charset(&corpus.hiragana_by_freq);
+        let corpus_chars: Vec<&str> = corpus.hiragana_by_freq.iter().map(|c| {
+            // charを&strに変換するためにマッチング
+            match *c {
+                'い' => "い", 'う' => "う", 'ん' => "ん", 'し' => "し", 'か' => "か",
+                'の' => "の", 'と' => "と", 'た' => "た", 'て' => "て", 'く' => "く",
+                'な' => "な", 'に' => "に", 'き' => "き", 'は' => "は", 'こ' => "こ",
+                'る' => "る", 'が' => "が", 'で' => "で", 'っ' => "っ", 'す' => "す",
+                'ま' => "ま", 'じ' => "じ", 'り' => "り", 'も' => "も", 'つ' => "つ",
+                'お' => "お", 'ら' => "ら", 'を' => "を", 'さ' => "さ", 'あ' => "あ",
+                'れ' => "れ", 'だ' => "だ", 'ち' => "ち", 'せ' => "せ", 'け' => "け",
+                'ー' => "ー", 'よ' => "よ", 'ど' => "ど", 'そ' => "そ", 'え' => "え",
+                'わ' => "わ", 'み' => "み", 'め' => "め", 'ひ' => "ひ", 'ば' => "ば",
+                'や' => "や", 'ろ' => "ろ", 'ほ' => "ほ", 'ふ' => "ふ", 'ぶ' => "ぶ",
+                'ね' => "ね", 'ご' => "ご", 'ぎ' => "ぎ", 'げ' => "げ", 'む' => "む",
+                'び' => "び", 'ざ' => "ざ", 'ぐ' => "ぐ", 'ぜ' => "ぜ", 'へ' => "へ",
+                'べ' => "べ", 'ゆ' => "ゆ", 'ぼ' => "ぼ", 'ぷ' => "ぷ", 'ぞ' => "ぞ",
+                'ぱ' => "ぱ", 'ぴ' => "ぴ", 'づ' => "づ", 'ぺ' => "ぺ", 'ぬ' => "ぬ",
+                'ぽ' => "ぽ", 'ヴ' => "ヴ", 'ぢ' => "ぢ", 'ず' => "ず",
+                'ぁ' => "ぁ", 'ぃ' => "ぃ", 'ぅ' => "ぅ", 'ぇ' => "ぇ", 'ぉ' => "ぉ",
+                _ => "　",
+            }
+        }).collect();
+        let hiragana_chars = Self::ensure_complete_charset(&corpus_chars);
         Self {
             evaluator: Evaluator::new(corpus),
             config,
@@ -77,7 +99,28 @@ impl GeneticAlgorithm {
     pub fn with_weights(corpus: CorpusStats, config: GaConfig, weights: EvaluationWeights) -> Self {
         let rng = ChaCha8Rng::seed_from_u64(config.seed);
         // コーパスから頻度順リストを取得し、欠落文字をデフォルトリストで補完
-        let hiragana_chars = Self::ensure_complete_charset(&corpus.hiragana_by_freq);
+        let corpus_chars: Vec<&str> = corpus.hiragana_by_freq.iter().map(|c| {
+            match *c {
+                'い' => "い", 'う' => "う", 'ん' => "ん", 'し' => "し", 'か' => "か",
+                'の' => "の", 'と' => "と", 'た' => "た", 'て' => "て", 'く' => "く",
+                'な' => "な", 'に' => "に", 'き' => "き", 'は' => "は", 'こ' => "こ",
+                'る' => "る", 'が' => "が", 'で' => "で", 'っ' => "っ", 'す' => "す",
+                'ま' => "ま", 'じ' => "じ", 'り' => "り", 'も' => "も", 'つ' => "つ",
+                'お' => "お", 'ら' => "ら", 'を' => "を", 'さ' => "さ", 'あ' => "あ",
+                'れ' => "れ", 'だ' => "だ", 'ち' => "ち", 'せ' => "せ", 'け' => "け",
+                'ー' => "ー", 'よ' => "よ", 'ど' => "ど", 'そ' => "そ", 'え' => "え",
+                'わ' => "わ", 'み' => "み", 'め' => "め", 'ひ' => "ひ", 'ば' => "ば",
+                'や' => "や", 'ろ' => "ろ", 'ほ' => "ほ", 'ふ' => "ふ", 'ぶ' => "ぶ",
+                'ね' => "ね", 'ご' => "ご", 'ぎ' => "ぎ", 'げ' => "げ", 'む' => "む",
+                'び' => "び", 'ざ' => "ざ", 'ぐ' => "ぐ", 'ぜ' => "ぜ", 'へ' => "へ",
+                'べ' => "べ", 'ゆ' => "ゆ", 'ぼ' => "ぼ", 'ぷ' => "ぷ", 'ぞ' => "ぞ",
+                'ぱ' => "ぱ", 'ぴ' => "ぴ", 'づ' => "づ", 'ぺ' => "ぺ", 'ぬ' => "ぬ",
+                'ぽ' => "ぽ", 'ヴ' => "ヴ", 'ぢ' => "ぢ", 'ず' => "ず",
+                'ぁ' => "ぁ", 'ぃ' => "ぃ", 'ぅ' => "ぅ", 'ぇ' => "ぇ", 'ぉ' => "ぉ",
+                _ => "　",
+            }
+        }).collect();
+        let hiragana_chars = Self::ensure_complete_charset(&corpus_chars);
         Self {
             evaluator: Evaluator::with_weights(corpus, weights),
             config,
@@ -86,18 +129,27 @@ impl GeneticAlgorithm {
         }
     }
 
-    /// コーパスの文字リストが全140文字を含むことを保証
+    /// コーパスの文字リストが全文字を含むことを保証
     /// 欠落している文字はHIRAGANA_FREQ_DEFAULTから補完（末尾に追加）
-    fn ensure_complete_charset(corpus_chars: &[&str]) -> Vec<&str> {
+    /// 固定文字（ー, ; など）は除外
+    fn ensure_complete_charset(corpus_chars: &[&str]) -> Vec<String> {
         use std::collections::HashSet;
 
-        let mut result = corpus_chars.to_vec();
-        let existing: HashSet<&str> = result.iter().copied().collect();
+        // 固定文字（配置対象外）
+        let fixed_chars: HashSet<&str> = ["◆", "★", "☆", "◎", "ー", "、", "。", "・", ";"].iter().copied().collect();
 
-        // デフォルトリストから欠落文字を探して末尾に追加
+        // 固定文字を除外してコピー
+        let mut result: Vec<String> = corpus_chars
+            .iter()
+            .filter(|s| !fixed_chars.contains(**s))
+            .map(|s| s.to_string())
+            .collect();
+        let existing: HashSet<&str> = corpus_chars.iter().copied().collect();
+
+        // デフォルトリストから欠落文字を探して末尾に追加（固定文字は除外）
         for &c in HIRAGANA_FREQ_DEFAULT {
-            if !existing.contains(c) {
-                result.push(c);
+            if !existing.contains(c) && !fixed_chars.contains(c) {
+                result.push(c.to_string());
             }
         }
 
@@ -127,7 +179,8 @@ impl GeneticAlgorithm {
         
         // 残りはランダム生成
         for _ in 1..self.config.population_size {
-            let mut layout = Layout::random_with_chars(&mut self.rng, &self.hiragana_chars);
+            let chars_refs: Vec<&str> = self.hiragana_chars.iter().map(|s| s.as_str()).collect();
+            let mut layout = Layout::random_with_chars(&mut self.rng, &chars_refs);
             self.repair_layout(&mut layout);
             self.evaluator.evaluate(&mut layout);
             population.push(layout);
@@ -225,11 +278,13 @@ impl GeneticAlgorithm {
             for row in 0..ROWS {
                 for col in 0..COLS {
                     if Layout::is_fixed_position(layer, row, col) {
-                        child.layers[layer][row][col] = parent1.layers[layer][row][col];
+                        child.layers[layer][row][col] = parent1.layers[layer][row][col].clone();
+                    } else if Layout::is_blank_position(layer, row, col) {
+                        child.layers[layer][row][col] = "　".to_string();  // 空白位置は常に空白
                     } else if self.rng.gen::<bool>() {
-                        child.layers[layer][row][col] = parent1.layers[layer][row][col];
+                        child.layers[layer][row][col] = parent1.layers[layer][row][col].clone();
                     } else {
-                        child.layers[layer][row][col] = parent2.layers[layer][row][col];
+                        child.layers[layer][row][col] = parent2.layers[layer][row][col].clone();
                     }
                 }
             }
@@ -243,16 +298,13 @@ impl GeneticAlgorithm {
     /// 突然変異（2つの位置をスワップ）
     fn mutate(&mut self, layout: &mut Layout) {
         // ランダムな非固定位置を2つ選択してスワップ
-        // Ver位置（空白優先配置位置）もスワップから除外
+        // 空白位置（シフト制限）もスワップから除外
         let positions: Vec<(usize, usize, usize)> = (0..NUM_LAYERS)
             .flat_map(|l| {
                 (0..ROWS).flat_map(move |r| {
                     (0..COLS).filter_map(move |c| {
-                        // Ver位置の空白は固定扱い（スワップ禁止）
-                        // Layer 2の★の上下のみ
-                        let is_ver_blank = l == 2 && c == 2 && (r == 0 || r == 2);
-
-                        if !Layout::is_fixed_position(l, r, c) && !is_ver_blank {
+                        // 固定位置と空白位置はスワップ禁止
+                        if !Layout::is_fixed_position(l, r, c) && !Layout::is_blank_position(l, r, c) {
                             Some((l, r, c))
                         } else {
                             None
@@ -270,8 +322,8 @@ impl GeneticAlgorithm {
                 let (l1, r1, c1) = positions[idx1];
                 let (l2, r2, c2) = positions[idx2];
 
-                let tmp = layout.layers[l1][r1][c1];
-                layout.layers[l1][r1][c1] = layout.layers[l2][r2][c2];
+                let tmp = layout.layers[l1][r1][c1].clone();
+                layout.layers[l1][r1][c1] = layout.layers[l2][r2][c2].clone();
                 layout.layers[l2][r2][c2] = tmp;
             }
         }
@@ -282,63 +334,83 @@ impl GeneticAlgorithm {
         use std::collections::HashSet;
 
         // まず、固定位置を強制的に設定（交叉で壊れた場合に備える）
-        // Layer 0: シフトキーと句読点
-        layout.layers[0][1][2] = '★';
-        layout.layers[0][1][7] = '☆';
-        layout.layers[0][2][7] = '、';
-        layout.layers[0][2][8] = '。';
+        // Layer 0: シフトキー（◆,★,☆,◎）と句読点
+        layout.layers[0][1][1] = "◆".to_string();  // 左薬指 → Layer 4
+        layout.layers[0][1][2] = "★".to_string();  // 左中指 → Layer 2
+        layout.layers[0][1][7] = "☆".to_string();  // 右中指 → Layer 1
+        layout.layers[0][1][8] = "◎".to_string();  // 右薬指 → Layer 3
+        layout.layers[0][0][9] = "ー".to_string();  // 長音符
+        layout.layers[0][2][7] = "、".to_string();
+        layout.layers[0][2][8] = "。".to_string();
+        layout.layers[0][2][9] = "・".to_string();
 
-        // Layer 1: 記号
-        layout.layers[1][2][7] = '；';
-        layout.layers[1][2][8] = '・';
+        // Layer 2: セミコロン
+        layout.layers[2][0][9] = ";".to_string();
 
-        // Ver位置の空白を強制設定
-        layout.layers[2][0][2] = '　';
-        layout.layers[2][2][2] = '　';
+        // 空白位置を強制設定（シフトキーと同手の制限位置）
+        for layer in 0..NUM_LAYERS {
+            for row in 0..ROWS {
+                for col in 0..COLS {
+                    if Layout::is_blank_position(layer, row, col) {
+                        layout.layers[layer][row][col] = "　".to_string();
+                    }
+                }
+            }
+        }
 
-        let mut seen: HashSet<char> = HashSet::new();
-        let mut missing: Vec<char> = Vec::new();
+        // 固定文字のセット（重複検出でスキップ）
+        let fixed_chars: HashSet<&str> = ["◆", "★", "☆", "◎", "ー", "、", "。", "・", ";"].iter().copied().collect();
+
+        let mut seen: HashSet<String> = HashSet::new();
+        let mut missing: Vec<String> = Vec::new();
         let mut duplicates: Vec<(usize, usize, usize)> = Vec::new();
 
         // 重複を検出
         for layer in 0..NUM_LAYERS {
             for row in 0..ROWS {
                 for col in 0..COLS {
-                    // 固定位置とVer位置はスキップ
+                    // 固定位置と空白位置はスキップ
                     if Layout::is_fixed_position(layer, row, col) {
                         continue;
                     }
-
-                    // Ver位置の空白もスキップ
-                    let is_ver_blank = layer == 2 && col == 2 && (row == 0 || row == 2);
-                    if is_ver_blank {
+                    if Layout::is_blank_position(layer, row, col) {
                         continue;
                     }
 
-                    let c = layout.layers[layer][row][col];
+                    let s = &layout.layers[layer][row][col];
 
-                    // Ver位置以外の全角スペースや重複文字を検出
-                    if c == '　' || c == '\0' || seen.contains(&c) {
+                    // 固定文字が配置可能位置に入り込んでいたら重複扱い
+                    if fixed_chars.contains(s.as_str()) {
+                        duplicates.push((layer, row, col));
+                        continue;
+                    }
+
+                    // 空白位置以外の全角スペースや重複文字を検出
+                    if s == "　" || s.is_empty() || seen.contains(s) {
                         duplicates.push((layer, row, col));
                     } else {
-                        seen.insert(c);
+                        seen.insert(s.clone());
                     }
                 }
             }
         }
 
         // 欠落文字を検出（コーパスから取得した頻度順リストを使用）
-        for &c in &self.hiragana_chars {
-            if !seen.contains(&c) {
-                missing.push(c);
+        for c in &self.hiragana_chars {
+            // 固定文字はスキップ
+            if fixed_chars.contains(c.as_str()) {
+                continue;
+            }
+            if !seen.contains(c) {
+                missing.push(c.clone());
             }
         }
 
         // 重複位置に欠落文字を配置
         missing.shuffle(&mut self.rng);
         for (i, (layer, row, col)) in duplicates.iter().enumerate() {
-            if let Some(&replacement) = missing.get(i) {
-                layout.layers[*layer][*row][*col] = replacement;
+            if let Some(replacement) = missing.get(i) {
+                layout.layers[*layer][*row][*col] = replacement.clone();
             }
             // 欠落文字が足りない場合でも警告を出さない（通常は発生しないはず）
         }

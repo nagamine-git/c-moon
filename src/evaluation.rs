@@ -341,65 +341,61 @@ impl Evaluator {
 
     /// 位置別コスト評価（幾何平均方式）
     /// 高頻度文字を低コスト位置に配置できているかを評価
-    /// 乗算ベースなので高コスト位置への配置がより強くペナルティされる
+    /// シフトキー: D(col1)→L4, B(col2)→L2, A(col7)→L1, C(col8)→L3
     fn calc_position_cost(&self, layout: &Layout, char_map: &HashMap<char, KeyPos>) -> f64 {
-        // ベースコスト（No Layer） - 1.0が最良
-        const BASE_COST: [[f64; COLS]; ROWS] = [
-            [4.0, 2.0, 2.0, 2.0, 3.0,  4.0, 2.0, 2.0, 2.0, 4.0],  // 上段
-            [2.0, 1.0, 1.0, 1.0, 2.0,  2.0, 1.0, 1.0, 1.0, 2.0],  // 中段
-            [4.0, 3.0, 2.0, 2.0, 4.0,  3.0, 2.0, 2.0, 2.0, 4.0],  // 下段
+        // Layer 0 (No Shift) ベースコスト
+        const COST_L0: [[f64; COLS]; ROWS] = [
+            [3.7, 2.0, 2.0, 2.4, 3.5,  3.9, 2.4, 2.0, 2.0, 3.7],  // 上段
+            [1.5, 1.0, 1.0, 1.0, 2.4,  2.4, 1.0, 1.0, 1.0, 1.5],  // 中段 (D,B,A,Cはシフトキー)
+            [3.7, 2.8, 2.4, 2.0, 3.9,  3.0, 2.0, 2.0, 2.0, 3.7],  // 下段 (、。は固定)
+        ];
+        // Layer 1 (A シフト - col7右中指)
+        const COST_L1: [[f64; COLS]; ROWS] = [
+            [7.5, 4.0, 4.0, 4.9, 6.9,  7.7, 4.9, 16.0, 16.0, 29.9],
+            [3.0, 2.0, 2.0, 2.0, 4.9,  4.9, 2.0, 8.0, 8.0, 12.0],
+            [7.5, 5.7, 4.9, 4.0, 7.7,  6.0, 4.0, 22.6, 22.6, 29.9],
+        ];
+        // Layer 2 (B シフト - col2左中指)
+        const COST_L2: [[f64; COLS]; ROWS] = [
+            [29.9, 16.0, 16.0, 4.9, 6.9,  7.7, 4.9, 4.0, 4.0, 7.5],
+            [12.0, 8.0, 8.0, 2.0, 4.9,  4.9, 2.0, 2.0, 2.0, 3.0],
+            [29.9, 22.6, 22.6, 4.0, 7.7,  6.0, 4.0, 4.9, 5.7, 7.5],
+        ];
+        // Layer 3 (C シフト - col8右薬指)
+        const COST_L3: [[f64; COLS]; ROWS] = [
+            [8.6, 4.6, 4.6, 5.6, 8.0,  8.9, 8.9, 5.6, 34.4, 34.4],
+            [3.5, 2.3, 2.3, 2.3, 5.6,  5.6, 2.3, 2.3, 9.2, 13.8],
+            [8.6, 6.5, 5.6, 4.6, 8.9,  6.9, 4.6, 5.6, 34.4, 34.4],
+        ];
+        // Layer 4 (D シフト - col1左薬指)
+        const COST_L4: [[f64; COLS]; ROWS] = [
+            [34.4, 34.4, 4.6, 5.6, 8.0,  8.9, 5.6, 4.6, 4.6, 8.6],
+            [13.8, 9.2, 2.3, 2.3, 5.6,  5.6, 2.3, 2.3, 2.3, 3.5],
+            [34.4, 34.4, 5.6, 4.6, 8.9,  6.9, 4.6, 5.6, 6.5, 8.6],
         ];
 
-        // 幾何平均: exp(Σ(freq × ln(cost)) / Σfreq)
-        // ln(1/cost)を使うと低コスト=高スコアになる
         let mut log_sum = 0.0;
         let mut total_freq = 0.0;
 
         // 1. 通常文字の評価
         for (&c, &count) in &self.corpus.char_freq {
             if let Some(&pos) = char_map.get(&c) {
-                let base = BASE_COST[pos.row][pos.col];
+                let cost = match pos.layer {
+                    0 => COST_L0[pos.row][pos.col],
+                    1 => COST_L1[pos.row][pos.col],
+                    2 => COST_L2[pos.row][pos.col],
+                    3 => COST_L3[pos.row][pos.col],
+                    4 => COST_L4[pos.row][pos.col],
+                    _ => 50.0,
+                };
 
-                // Layer 1,2はLayer 0よりわずかにペナルティ（シフト操作コスト）
-                let layer_penalty = if pos.layer == 0 { 1.0 } else { 1.05 };
-                let mut multiplier = layer_penalty;
-
-                if pos.layer == 1 {
-                    // Layer 1（☆シフト）
-                    multiplier = 3.0 * layer_penalty;
-
-                    // Ver: ☆の上下段（col=7, row!=1）
-                    if pos.col == 7 && pos.row != 1 {
-                        multiplier += 27.0;
-                    }
-                    // Out: ☆より小指側（col >= 8）
-                    if pos.col >= 8 {
-                        multiplier += 9.0;
-                    }
-                } else if pos.layer == 2 {
-                    // Layer 2（★シフト）
-                    multiplier = 3.0 * layer_penalty;
-
-                    // Ver: ★の上下段（col=2, row!=1）
-                    if pos.col == 2 && pos.row != 1 {
-                        multiplier += 27.0;
-                    }
-                    // Out: ★より小指側（col <= 1）
-                    if pos.col <= 1 {
-                        multiplier += 9.0;
-                    }
-                }
-
-                let cost = base * multiplier;
                 let freq = count as f64;
-
-                // ln(1/cost) = -ln(cost) を頻度で重み付け
-                log_sum += freq * (-(cost as f64).ln());
+                log_sum += freq * (-cost.ln());
                 total_freq += freq;
             }
         }
 
-        // 2. 空白文字のペナルティ（乗算で反映）
+        // 2. 空白文字のペナルティ
         for layer in 0..NUM_LAYERS {
             for row in 0..ROWS {
                 for col in 0..COLS {
@@ -409,22 +405,18 @@ impl Evaluator {
                         continue;
                     }
 
-                    let is_ver = (layer == 1 && col == 7 && row != 1) ||
-                                 (layer == 2 && col == 2 && row != 1);
-                    let is_out = (layer == 1 && col >= 8) ||
-                                 (layer == 2 && col <= 1);
-
-                    // 空白位置のコスト（乗算に反映）
-                    let blank_cost: f64 = if is_ver {
-                        0.5  // Ver位置の空白はボーナス（コスト<1）
-                    } else if is_out {
-                        2.0  // Out位置の空白は許容
-                    } else {
-                        50.0 // その他の空白は強いペナルティ
+                    // Ver/Out位置の空白は許容、それ以外はペナルティ
+                    let is_ver_or_out = match layer {
+                        1 => col >= 7 && row != 1,           // Layer 1: A(col7)の上下、col>=8
+                        2 => col <= 2 && row != 1,           // Layer 2: B(col2)の上下、col<=1
+                        3 => col >= 8 && row != 1,           // Layer 3: C(col8)の上下、col>=9
+                        4 => col <= 1 && row != 1,           // Layer 4: D(col1)の上下、col<=0
+                        _ => false,
                     };
 
-                    // 空白1個あたりの重み（頻度相当）
-                    let blank_weight = total_freq * 0.01; // 全体の1%相当
+                    let blank_cost: f64 = if is_ver_or_out { 0.5 } else { 50.0 };
+
+                    let blank_weight = total_freq * 0.01;
                     log_sum += blank_weight * (-blank_cost.ln());
                     total_freq += blank_weight;
                 }
@@ -435,13 +427,7 @@ impl Evaluator {
             return 0.0;
         }
 
-        // 幾何平均のスコア = exp(log_sum / total_freq)
-        // これは 1/幾何平均(costs) に相当（低コスト=高スコア）
         let geo_score = (log_sum / total_freq).exp();
-
-        // 最大スコア: 1/1.0 = 1.0（全て最良位置）
-        // 最小スコア: 1/120 ≈ 0.008（全て最悪位置）
-        // 0-100%にスケーリング
         let normalized = geo_score.min(1.0);
         normalized * 100.0
     }
@@ -573,10 +559,12 @@ impl Evaluator {
                     continue;
                 }
 
-                let c0 = layout.layers[0][row][col];
-                if c0 == '　' || c0 == '\0' {
+                let s0 = &layout.layers[0][row][col];
+                let c0 = s0.chars().next();
+                if c0.is_none() || c0 == Some('　') {
                     continue;
                 }
+                let c0 = c0.unwrap();
 
                 let is_vowel_0 = vowels.contains(&c0);
                 let mut layer_consistent = 0;
@@ -587,10 +575,12 @@ impl Evaluator {
                         continue;
                     }
 
-                    let c_layer = layout.layers[layer][row][col];
-                    if c_layer == '　' || c_layer == '\0' {
+                    let s_layer = &layout.layers[layer][row][col];
+                    let c_layer = s_layer.chars().next();
+                    if c_layer.is_none() || c_layer == Some('　') {
                         continue;
                     }
+                    let c_layer = c_layer.unwrap();
 
                     layer_checked += 1;
                     let is_vowel_layer = vowels.contains(&c_layer);

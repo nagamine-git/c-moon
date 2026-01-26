@@ -82,6 +82,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     tui: bool,
 
+    /// テスト実行（100世代100個体で検証後、本実行）
+    #[arg(long, default_value_t = false)]
+    test: bool,
+
+    /// テスト実行の世代数
+    #[arg(long, default_value_t = 100)]
+    test_generations: usize,
+
+    /// テスト実行の個体数
+    #[arg(long, default_value_t = 100)]
+    test_population: usize,
+
     // ========================================
     // 評価重みオプション
     // ========================================
@@ -195,6 +207,15 @@ fn main() {
     println!("  エリート保持: {}", config.elite_count);
     println!("  シード: {}", config.seed);
     println!();
+
+    // テスト実行（--test フラグ）
+    if args.test {
+        if !run_test_validation(&corpus, &args, &weights) {
+            println!("\nテスト実行で問題が検出されました。本実行を中止します。");
+            return;
+        }
+        println!("\n=== 本実行を開始 ===\n");
+    }
 
     if args.multi_run > 0 {
         // マルチラン実行
@@ -439,17 +460,18 @@ fn run_multi_with_tui(
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     let actual_runs = num_runs.min(num_cpus::get());
-    
+
     // 共有状態
     let corpus_arc = Arc::new(corpus.clone());
     let state = Arc::new(Mutex::new(TuiState::new_with_debug(config.generations, debug, Some(Arc::clone(&corpus_arc)))));
-    
-    // 重みを設定
+
+    // 重みとマルチランモードを設定
     {
         let mut s = state.lock().unwrap();
         s.set_weights(weights.clone());
+        s.enable_multi_run(actual_runs);
     }
-    
+
     let completed_runs = Arc::new(AtomicUsize::new(0));
     
     // 完了した結果を保持（Ctrl+C時の保存用）
@@ -481,21 +503,22 @@ fn run_multi_with_tui(
     // 並列実行（各ランで最良をTUIに報告）
     let results: Vec<_> = (0..actual_runs)
         .into_par_iter()
-        .map(|_| {
+        .enumerate()
+        .map(|(run_id, _)| {
             let seed: u64 = rand::random();
             let mut run_config = config.clone();
             run_config.seed = seed;
-            
+
             let state = Arc::clone(&state);
             let completed = Arc::clone(&completed_runs);
             let storage = Arc::clone(&completed_results);
-            
+
             let mut ga = ga::GeneticAlgorithm::with_weights(
                 corpus.clone(),
                 run_config.clone(),
                 weights.clone(),
             );
-            
+
             let result = ga.run_with_callback(|gen, fitness, layout| {
                 // try_lockでブロッキング回避（ロック競合時はスキップ）
                 if let Ok(mut s) = state.try_lock() {
@@ -506,11 +529,8 @@ fn run_multi_with_tui(
                     // 世代数は毎回更新（ETA計算のため）
                     s.generation = gen;
 
-                    // ベスト更新時のみlayoutをコピー（重い処理）
-                    if fitness > s.best_fitness {
-                        s.best_fitness = fitness;
-                        s.best_layout = Some(layout.clone());
-                    }
+                    // マルチラン用: 各ランの状態を更新
+                    s.update_multi_run(run_id, fitness, layout);
 
                     // fitness_historyは毎回追加
                     if s.fitness_history.len() <= gen {
@@ -518,14 +538,19 @@ fn run_multi_with_tui(
                     }
                 }
             });
-            
+
             // 完了した結果を保存（Ctrl+C時用）
             {
                 let mut results = storage.lock().unwrap();
                 results.push(result.clone());
             }
-            
-            completed.fetch_add(1, Ordering::SeqCst);
+
+            // 完了カウント更新
+            {
+                if let Ok(mut s) = state.try_lock() {
+                    s.completed_runs = completed.fetch_add(1, Ordering::SeqCst) + 1;
+                }
+            }
             result
         })
         .collect();
@@ -613,4 +638,54 @@ fn save_layout(layout: &Layout, path: &PathBuf) {
     println!("\n配列をエクスポート中...");
     export::export_all(layout, path.to_str().unwrap_or("best_layout.json"));
     println!("エクスポート完了");
+}
+
+/// テスト実行で配列の重複・不足をチェック
+fn run_test_validation(corpus: &CorpusStats, args: &Args, weights: &EvaluationWeights) -> bool {
+    use crate::layout::HIRAGANA_FREQ_DEFAULT;
+
+    println!("=== テスト実行 ===");
+    println!("世代数: {}, 個体数: {}", args.test_generations, args.test_population);
+    println!();
+
+    let test_config = GaConfig {
+        population_size: args.test_population,
+        generations: args.test_generations,
+        mutation_rate: args.mutation_rate,
+        elite_count: args.elite.min(args.test_population / 10).max(1),
+        seed: args.seed,
+    };
+
+    let mut ga = GeneticAlgorithm::with_weights(corpus.clone(), test_config, weights.clone());
+
+    let pb = ProgressBar::new(args.test_generations as u64);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template("{spinner:.green} [テスト] [{bar:40.cyan/blue}] {pos}/{len} | Best: {msg}")
+            .unwrap()
+            .progress_chars("#>-"),
+    );
+
+    let result = ga.run_with_callback(|gen, fitness, _| {
+        pb.set_position(gen as u64);
+        pb.set_message(format!("{:.4}", fitness));
+    });
+
+    pb.finish_with_message(format!("{:.4}", result.best_fitness));
+
+    println!("\nテスト結果:");
+    println!("  最良フィットネス: {:.4}", result.best_fitness);
+    println!("\n最良配列:");
+    println!("{}", result.best_layout.format());
+
+    // 検証実行
+    let validation = result.best_layout.validate(HIRAGANA_FREQ_DEFAULT);
+    validation.print_report();
+
+    if validation.is_valid() {
+        println!("\n✓ テスト成功: 本実行に進みます");
+        true
+    } else {
+        false
+    }
 }
