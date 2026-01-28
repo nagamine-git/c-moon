@@ -1,11 +1,22 @@
 # 新月配列 (Shingetsu Layout)
 
-<img width="847" height="742" alt="image" src="https://github.com/user-attachments/assets/97a4e9fe-1185-4dd7-b79f-34eae9714fac" />
+![License](https://img.shields.io/github/license/nagamine-git/shingetsu-layout)
+![Stars](https://img.shields.io/github/stars/nagamine-git/shingetsu-layout)
 
+<img width="847" height="742" alt="新月配列のキーマップ図" src="https://github.com/user-attachments/assets/97a4e9fe-1185-4dd7-b79f-34eae9714fac" />
 
-**月配列2-263をベースとした、最小かつ最高効率のPCキーボード用かな配列**
+## 新月配列とは？
 
-スマホフリック入力の「濁音・半濁音・小文字を1キーに統合する」というアイデアを着想として、PCキーボード配列に適用。
+**新月配列 (Shingetsu Layout)** は、実績ある「月配列2-263」をベースに、スマートフォンのフリック入力のアイデア（濁音・半濁音・小文字の統合）を取り入れた、**最小かつ最高効率を目指すPC用かな配列**です。
+
+Google日本語入力やKarabiner-Elements等で利用可能です。
+
+## なぜ新月配列なのか？ (Concept)
+
+従来の月配列の快適さを維持しつつ、以下の課題を解決しました。
+
+1.  **記憶コストの削減**: 濁音・半濁音・小文字を「1つのシフトキー」に集約。
+2.  **打鍵効率の向上**: 頻出する濁音操作をホームポジション周辺で完結。
 
 ## 特徴
 
