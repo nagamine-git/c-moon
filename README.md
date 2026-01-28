@@ -1,5 +1,8 @@
 # 新月配列 (Shingetsu Layout)
 
+<img width="847" height="742" alt="image" src="https://github.com/user-attachments/assets/97a4e9fe-1185-4dd7-b79f-34eae9714fac" />
+
+
 **月配列2-263をベースとした、最小かつ最高効率のPCキーボード用かな配列**
 
 スマホフリック入力の「濁音・半濁音・小文字を1キーに統合する」というアイデアを着想として、PCキーボード配列に適用。
@@ -56,3 +59,4 @@ MIT
 ## Keywords
 
 日本語入力, かな配列, キーボードレイアウト, 月配列, 月配列2-263, 前置シフト, Shingetsu, Japanese Input, Kana Layout, Keyboard Layout
+
