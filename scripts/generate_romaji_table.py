@@ -426,10 +426,10 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
                 "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
                 "to": [{"set_variable": {"name": "shift_state", "value": 3}}]
             })
-            # 通常時: 何も出力しない (後置濁点用のルールは各文字の後に追加)
+            # 通常時(shift_state=0): 何も出力しない (後置濁点用のルールは各文字の後に追加)
             manipulators.append({
                 "type": "basic",
-                "conditions": ja_conditions,
+                "conditions": [{"type": "variable_if", "name": "shift_state", "value": 0}] + ja_conditions,
                 "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
                 "to": [
                     {"key_code": "vk_none"},
@@ -568,7 +568,7 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
                             ]
                         })
 
-        # ベース面の文字
+        # ベース面の文字 (shift_state=0のときのみ)
         base_char = base_chars.get(qwerty_key)
         if base_char:
             romaji = KANA_TO_ROMAJI.get(base_char)
@@ -579,7 +579,7 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
 
                 manipulators.append({
                     "type": "basic",
-                    "conditions": ja_conditions,
+                    "conditions": [{"type": "variable_if", "name": "shift_state", "value": 0}] + ja_conditions,
                     "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
                     "to": romaji_to_keycodes(romaji) + [
                         {"set_variable": {"name": "last_char", "value": char_id}}
