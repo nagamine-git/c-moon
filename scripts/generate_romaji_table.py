@@ -409,14 +409,14 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
 
         # ゛キー (l)
         if qwerty_key == 'l':
-            # ★+゛: 拗音シフト状態(shift_state=4)に移行 (みゃ/みゅ/みょ用)
+            # ★+゛: わ を出力
             manipulators.append({
                 "type": "basic",
                 "conditions": [{"type": "variable_if", "name": "shift_state", "value": 1}] + ja_conditions,
                 "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
-                "to": [
+                "to": romaji_to_keycodes("wa") + [
                     {"set_variable": {"name": "last_char", "value": 0}},
-                    {"set_variable": {"name": "shift_state", "value": 4}}
+                    {"set_variable": {"name": "shift_state", "value": 0}}
                 ]
             })
             # ☆+゛: 拗音シフト状態(shift_state=3)に移行
@@ -427,16 +427,6 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
                 "to": [
                     {"set_variable": {"name": "last_char", "value": 0}},
                     {"set_variable": {"name": "shift_state", "value": 3}}
-                ]
-            })
-            # ★゛モード(shift_state=4)で゛を押したら: わ を出力
-            manipulators.append({
-                "type": "basic",
-                "conditions": [{"type": "variable_if", "name": "shift_state", "value": 4}] + ja_conditions,
-                "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
-                "to": romaji_to_keycodes("wa") + [
-                    {"set_variable": {"name": "last_char", "value": 0}},
-                    {"set_variable": {"name": "shift_state", "value": 0}}
                 ]
             })
             # 通常時(shift_state=0): 何も出力しない (後置濁点用のルールは各文字の後に追加)
@@ -657,15 +647,16 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
                             ]
                         })
 
-    # 拗音シフト (☆+゛+key) - ぴゃ, ぴゅ, ぴょ, じゃ, etc. (shift_state=3)
-    circle_dakuten_chars = {}
+    # 拗音シフト (☆+゛+key) - ぴゃ, ぴゅ, ぴょ, じゃ, みゃ, みゅ, みょ, etc. (shift_state=3)
+    # shift=['k', 'l'] または shift=['d', 'l'] のものを全て ☆+゛ で打てるようにする
+    yoon_chars = {}
     for char, mapping in conversion.items():
         keys = mapping.get('keys', [])
         shift = mapping.get('shift', [])
-        if len(keys) == 1 and 'k' in shift and 'l' in shift:
-            circle_dakuten_chars[keys[0]] = char
+        if len(keys) == 1 and 'l' in shift and ('k' in shift or 'd' in shift):
+            yoon_chars[keys[0]] = char
 
-    for qwerty_key, char in circle_dakuten_chars.items():
+    for qwerty_key, char in yoon_chars.items():
         romaji = KANA_TO_ROMAJI.get(char)
         if romaji:
             key = convert_key_to_layout(qwerty_key, use_colemak)
@@ -673,29 +664,6 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
             manipulators.append({
                 "type": "basic",
                 "conditions": [{"type": "variable_if", "name": "shift_state", "value": 3}] + ja_conditions,
-                "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
-                "to": romaji_to_keycodes(romaji) + [
-                    {"set_variable": {"name": "last_char", "value": 0}},
-                    {"set_variable": {"name": "shift_state", "value": 0}}
-                ]
-            })
-
-    # 拗音シフト (★+゛+key) - みゃ, みゅ, みょ (shift_state=4)
-    star_dakuten_chars = {}
-    for char, mapping in conversion.items():
-        keys = mapping.get('keys', [])
-        shift = mapping.get('shift', [])
-        if len(keys) == 1 and 'd' in shift and 'l' in shift:
-            star_dakuten_chars[keys[0]] = char
-
-    for qwerty_key, char in star_dakuten_chars.items():
-        romaji = KANA_TO_ROMAJI.get(char)
-        if romaji:
-            key = convert_key_to_layout(qwerty_key, use_colemak)
-            keycode = key_to_keycode(key)
-            manipulators.append({
-                "type": "basic",
-                "conditions": [{"type": "variable_if", "name": "shift_state", "value": 4}] + ja_conditions,
                 "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
                 "to": romaji_to_keycodes(romaji) + [
                     {"set_variable": {"name": "last_char", "value": 0}},
