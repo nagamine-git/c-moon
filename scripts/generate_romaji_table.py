@@ -70,6 +70,20 @@ KANA_TO_ROMAJI = {
     'ゃ': 'xya', 'ゅ': 'xyu', 'ょ': 'xyo', 'っ': 'xtu',
     'ー': '-', 'ゔ': 'vu',
     '、': ',', '。': '.', '「': '[', '」': ']',
+    # 拗音
+    'きゃ': 'kya', 'きゅ': 'kyu', 'きょ': 'kyo',
+    'しゃ': 'sya', 'しゅ': 'syu', 'しょ': 'syo',
+    'ちゃ': 'tya', 'ちゅ': 'tyu', 'ちょ': 'tyo',
+    'にゃ': 'nya', 'にゅ': 'nyu', 'にょ': 'nyo',
+    'ひゃ': 'hya', 'ひゅ': 'hyu', 'ひょ': 'hyo',
+    'みゃ': 'mya', 'みゅ': 'myu', 'みょ': 'myo',
+    'りゃ': 'rya', 'りゅ': 'ryu', 'りょ': 'ryo',
+    'ぎゃ': 'gya', 'ぎゅ': 'gyu', 'ぎょ': 'gyo',
+    'じゃ': 'zya', 'じゅ': 'zyu', 'じょ': 'zyo',
+    'ぢゃ': 'dya', 'ぢゅ': 'dyu', 'ぢょ': 'dyo',
+    'びゃ': 'bya', 'びゅ': 'byu', 'びょ': 'byo',
+    'ぴゃ': 'pya', 'ぴゅ': 'pyu', 'ぴょ': 'pyo',
+    'でゅ': 'dhu',
 }
 
 
@@ -325,9 +339,9 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
         key = convert_key_to_layout(qwerty_key, use_colemak)
         keycode = key_to_keycode(key)
 
-        # ★シフトキー (d)
+        # ★シフトキー (d) - shift_state=1
         if qwerty_key == 'd':
-            # シフト状態=1のとき: ら を出力
+            # ★★ (2回押し): ら を出力
             manipulators.append({
                 "type": "basic",
                 "conditions": [{"type": "variable_if", "name": "shift_state", "value": 1}] + ja_conditions,
@@ -337,7 +351,17 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
                     {"set_variable": {"name": "shift_state", "value": 0}}
                 ]
             })
-            # 通常時: シフト状態=1に設定
+            # ☆★: ら を出力
+            manipulators.append({
+                "type": "basic",
+                "conditions": [{"type": "variable_if", "name": "shift_state", "value": 2}] + ja_conditions,
+                "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
+                "to": romaji_to_keycodes("ra") + [
+                    {"set_variable": {"name": "last_char", "value": 0}},
+                    {"set_variable": {"name": "shift_state", "value": 0}}
+                ]
+            })
+            # 通常時: シフト状態=1 (★)に設定
             manipulators.append({
                 "type": "basic",
                 "conditions": ja_conditions,
@@ -349,9 +373,19 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
             })
             continue
 
-        # ☆シフトキー (k)
+        # ☆シフトキー (k) - shift_state=2
         if qwerty_key == 'k':
-            # シフト状態=1のとき: も を出力
+            # ☆☆ (2回押し): も を出力
+            manipulators.append({
+                "type": "basic",
+                "conditions": [{"type": "variable_if", "name": "shift_state", "value": 2}] + ja_conditions,
+                "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
+                "to": romaji_to_keycodes("mo") + [
+                    {"set_variable": {"name": "last_char", "value": 0}},
+                    {"set_variable": {"name": "shift_state", "value": 0}}
+                ]
+            })
+            # ★☆: も を出力
             manipulators.append({
                 "type": "basic",
                 "conditions": [{"type": "variable_if", "name": "shift_state", "value": 1}] + ja_conditions,
@@ -361,21 +395,21 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
                     {"set_variable": {"name": "shift_state", "value": 0}}
                 ]
             })
-            # 通常時: シフト状態=1に設定 (☆も★と同じshift_state=1を使用)
+            # 通常時: シフト状態=2 (☆)に設定
             manipulators.append({
                 "type": "basic",
                 "conditions": ja_conditions,
                 "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
                 "to": [
                     {"set_variable": {"name": "last_char", "value": 0}},
-                    {"set_variable": {"name": "shift_state", "value": 1}}
+                    {"set_variable": {"name": "shift_state", "value": 2}}
                 ]
             })
             continue
 
-        # ゛キー (l) - 後置濁点として機能、通常時は無効化
+        # ゛キー (l)
         if qwerty_key == 'l':
-            # シフト状態=1のとき: わ を出力
+            # ★+゛: わ を出力
             manipulators.append({
                 "type": "basic",
                 "conditions": [{"type": "variable_if", "name": "shift_state", "value": 1}] + ja_conditions,
@@ -384,6 +418,13 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
                     {"set_variable": {"name": "last_char", "value": 0}},
                     {"set_variable": {"name": "shift_state", "value": 0}}
                 ]
+            })
+            # ☆+゛: 拗音シフト状態(shift_state=3)に移行
+            manipulators.append({
+                "type": "basic",
+                "conditions": [{"type": "variable_if", "name": "shift_state", "value": 2}] + ja_conditions,
+                "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
+                "to": [{"set_variable": {"name": "shift_state", "value": 3}}]
             })
             # 通常時: 何も出力しない (後置濁点用のルールは各文字の後に追加)
             manipulators.append({
@@ -407,71 +448,216 @@ def generate_karabiner_json(data: dict, use_colemak: bool = False) -> dict:
             })
             continue
 
-        # シフト面の文字
-        shifted_char = star_chars.get(qwerty_key) or circle_chars.get(qwerty_key)
-        if shifted_char:
-            romaji = KANA_TO_ROMAJI.get(shifted_char)
+        # ★シフト面の文字
+        star_char = star_chars.get(qwerty_key)
+        if star_char:
+            romaji = KANA_TO_ROMAJI.get(star_char)
             if romaji:
+                char_id += 1
+                last_char_map[star_char] = char_id
+                dakuten_keycode = key_to_keycode(convert_key_to_layout('l', use_colemak))
+
                 manipulators.append({
                     "type": "basic",
                     "conditions": [{"type": "variable_if", "name": "shift_state", "value": 1}] + ja_conditions,
                     "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
                     "to": romaji_to_keycodes(romaji) + [
-                        {"set_variable": {"name": "last_char", "value": 0}},
+                        {"set_variable": {"name": "last_char", "value": char_id}},
                         {"set_variable": {"name": "shift_state", "value": 0}}
                     ]
                 })
+
+                # ★シフト文字の濁音変換
+                if star_char in DAKUTEN_MAP:
+                    voiced = DAKUTEN_MAP[star_char]
+                    voiced_romaji = KANA_TO_ROMAJI.get(voiced)
+                    if voiced_romaji:
+                        voiced_char_id = char_id + 500
+                        manipulators.append({
+                            "type": "basic",
+                            "conditions": [{"type": "variable_if", "name": "last_char", "value": char_id}] + ja_conditions,
+                            "from": {"key_code": dakuten_keycode, "modifiers": {"optional": ["caps_lock"]}},
+                            "to": [{"key_code": "delete_or_backspace"}] + romaji_to_keycodes(voiced_romaji) + [
+                                {"set_variable": {"name": "last_char", "value": voiced_char_id}}
+                            ]
+                        })
+                        if voiced in DAKUTEN_TO_HANDAKUTEN_MAP:
+                            handakuten = DAKUTEN_TO_HANDAKUTEN_MAP[voiced]
+                            handakuten_romaji = KANA_TO_ROMAJI.get(handakuten)
+                            if handakuten_romaji:
+                                manipulators.append({
+                                    "type": "basic",
+                                    "conditions": [{"type": "variable_if", "name": "last_char", "value": voiced_char_id}] + ja_conditions,
+                                    "from": {"key_code": dakuten_keycode, "modifiers": {"optional": ["caps_lock"]}},
+                                    "to": [{"key_code": "delete_or_backspace"}, {"key_code": "delete_or_backspace"}] + romaji_to_keycodes(handakuten_romaji) + [
+                                        {"set_variable": {"name": "last_char", "value": 0}}
+                                    ]
+                                })
+
+                # ★シフト文字の小書き変換
+                if star_char in VOWEL_TO_KOGAKI_MAP:
+                    kogaki = VOWEL_TO_KOGAKI_MAP[star_char]
+                    kogaki_romaji = KANA_TO_ROMAJI.get(kogaki)
+                    if kogaki_romaji:
+                        manipulators.append({
+                            "type": "basic",
+                            "conditions": [{"type": "variable_if", "name": "last_char", "value": char_id}] + ja_conditions,
+                            "from": {"key_code": dakuten_keycode, "modifiers": {"optional": ["caps_lock"]}},
+                            "to": [{"key_code": "delete_or_backspace"}] + romaji_to_keycodes(kogaki_romaji) + [
+                                {"set_variable": {"name": "last_char", "value": 0}}
+                            ]
+                        })
+
+        # ☆シフト面の文字
+        circle_char = circle_chars.get(qwerty_key)
+        if circle_char:
+            romaji = KANA_TO_ROMAJI.get(circle_char)
+            if romaji:
+                char_id += 1
+                last_char_map[circle_char] = char_id
+                dakuten_keycode = key_to_keycode(convert_key_to_layout('l', use_colemak))
+
+                manipulators.append({
+                    "type": "basic",
+                    "conditions": [{"type": "variable_if", "name": "shift_state", "value": 2}] + ja_conditions,
+                    "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
+                    "to": romaji_to_keycodes(romaji) + [
+                        {"set_variable": {"name": "last_char", "value": char_id}},
+                        {"set_variable": {"name": "shift_state", "value": 0}}
+                    ]
+                })
+
+                # ☆シフト文字の濁音変換
+                if circle_char in DAKUTEN_MAP:
+                    voiced = DAKUTEN_MAP[circle_char]
+                    voiced_romaji = KANA_TO_ROMAJI.get(voiced)
+                    if voiced_romaji:
+                        voiced_char_id = char_id + 500
+                        manipulators.append({
+                            "type": "basic",
+                            "conditions": [{"type": "variable_if", "name": "last_char", "value": char_id}] + ja_conditions,
+                            "from": {"key_code": dakuten_keycode, "modifiers": {"optional": ["caps_lock"]}},
+                            "to": [{"key_code": "delete_or_backspace"}] + romaji_to_keycodes(voiced_romaji) + [
+                                {"set_variable": {"name": "last_char", "value": voiced_char_id}}
+                            ]
+                        })
+                        if voiced in DAKUTEN_TO_HANDAKUTEN_MAP:
+                            handakuten = DAKUTEN_TO_HANDAKUTEN_MAP[voiced]
+                            handakuten_romaji = KANA_TO_ROMAJI.get(handakuten)
+                            if handakuten_romaji:
+                                manipulators.append({
+                                    "type": "basic",
+                                    "conditions": [{"type": "variable_if", "name": "last_char", "value": voiced_char_id}] + ja_conditions,
+                                    "from": {"key_code": dakuten_keycode, "modifiers": {"optional": ["caps_lock"]}},
+                                    "to": [{"key_code": "delete_or_backspace"}, {"key_code": "delete_or_backspace"}] + romaji_to_keycodes(handakuten_romaji) + [
+                                        {"set_variable": {"name": "last_char", "value": 0}}
+                                    ]
+                                })
+
+                # ☆シフト文字の小書き変換
+                if circle_char in VOWEL_TO_KOGAKI_MAP:
+                    kogaki = VOWEL_TO_KOGAKI_MAP[circle_char]
+                    kogaki_romaji = KANA_TO_ROMAJI.get(kogaki)
+                    if kogaki_romaji:
+                        manipulators.append({
+                            "type": "basic",
+                            "conditions": [{"type": "variable_if", "name": "last_char", "value": char_id}] + ja_conditions,
+                            "from": {"key_code": dakuten_keycode, "modifiers": {"optional": ["caps_lock"]}},
+                            "to": [{"key_code": "delete_or_backspace"}] + romaji_to_keycodes(kogaki_romaji) + [
+                                {"set_variable": {"name": "last_char", "value": 0}}
+                            ]
+                        })
 
         # ベース面の文字
         base_char = base_chars.get(qwerty_key)
         if base_char:
             romaji = KANA_TO_ROMAJI.get(base_char)
             if romaji:
-                # 濁音変換可能な文字の場合、last_charを設定
+                char_id += 1
+                last_char_map[base_char] = char_id
+                dakuten_keycode = key_to_keycode(convert_key_to_layout('l', use_colemak))
+
+                manipulators.append({
+                    "type": "basic",
+                    "conditions": ja_conditions,
+                    "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
+                    "to": romaji_to_keycodes(romaji) + [
+                        {"set_variable": {"name": "last_char", "value": char_id}}
+                    ]
+                })
+
+                # 濁音変換 (か+゛→が)
                 if base_char in DAKUTEN_MAP:
-                    char_id += 1
-                    last_char_map[base_char] = char_id
-
-                    manipulators.append({
-                        "type": "basic",
-                        "conditions": ja_conditions,
-                        "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
-                        "to": romaji_to_keycodes(romaji) + [
-                            {"set_variable": {"name": "last_char", "value": char_id}}
-                        ]
-                    })
-
-                    # 濁音変換ルール (last_char + ゛)
                     voiced = DAKUTEN_MAP[base_char]
                     voiced_romaji = KANA_TO_ROMAJI.get(voiced)
                     if voiced_romaji:
-                        dakuten_keycode = key_to_keycode(convert_key_to_layout('l', use_colemak))
+                        # 濁音用のlast_char値を設定
+                        voiced_char_id = char_id + 500  # 濁音用のID
                         manipulators.append({
                             "type": "basic",
                             "conditions": [{"type": "variable_if", "name": "last_char", "value": char_id}] + ja_conditions,
                             "from": {"key_code": dakuten_keycode, "modifiers": {"optional": ["caps_lock"]}},
                             "to": [{"key_code": "delete_or_backspace"}] + romaji_to_keycodes(voiced_romaji) + [
+                                {"set_variable": {"name": "last_char", "value": voiced_char_id}}
+                            ]
+                        })
+
+                        # 半濁音変換 (ば+゛→ぱ)
+                        if voiced in DAKUTEN_TO_HANDAKUTEN_MAP:
+                            handakuten = DAKUTEN_TO_HANDAKUTEN_MAP[voiced]
+                            handakuten_romaji = KANA_TO_ROMAJI.get(handakuten)
+                            if handakuten_romaji:
+                                manipulators.append({
+                                    "type": "basic",
+                                    "conditions": [{"type": "variable_if", "name": "last_char", "value": voiced_char_id}] + ja_conditions,
+                                    "from": {"key_code": dakuten_keycode, "modifiers": {"optional": ["caps_lock"]}},
+                                    "to": [{"key_code": "delete_or_backspace"}, {"key_code": "delete_or_backspace"}] + romaji_to_keycodes(handakuten_romaji) + [
+                                        {"set_variable": {"name": "last_char", "value": 0}}
+                                    ]
+                                })
+
+                # 母音→小書き (あ+゛→ぁ)
+                if base_char in VOWEL_TO_KOGAKI_MAP:
+                    kogaki = VOWEL_TO_KOGAKI_MAP[base_char]
+                    kogaki_romaji = KANA_TO_ROMAJI.get(kogaki)
+                    if kogaki_romaji:
+                        manipulators.append({
+                            "type": "basic",
+                            "conditions": [{"type": "variable_if", "name": "last_char", "value": char_id}] + ja_conditions,
+                            "from": {"key_code": dakuten_keycode, "modifiers": {"optional": ["caps_lock"]}},
+                            "to": [{"key_code": "delete_or_backspace"}] + romaji_to_keycodes(kogaki_romaji) + [
                                 {"set_variable": {"name": "last_char", "value": 0}}
                             ]
                         })
-                else:
-                    manipulators.append({
-                        "type": "basic",
-                        "conditions": ja_conditions,
-                        "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
-                        "to": romaji_to_keycodes(romaji) + [
-                            {"set_variable": {"name": "last_char", "value": 0}}
-                        ]
-                    })
 
-    # objectとして返す (配列ではない)
-    return {
-        "title": f"{name}",
-        "rules": [{
-            "description": f"{name} - 前置/後置シフト ({layout_type})",
-            "manipulators": manipulators
-        }]
-    }
+    # 拗音シフト (☆+゛+key) - ぴゃ, ぴゅ, ぴょ, じゃ, etc. (shift_state=3)
+    circle_dakuten_chars = {}
+    for char, mapping in conversion.items():
+        keys = mapping.get('keys', [])
+        shift = mapping.get('shift', [])
+        if len(keys) == 1 and 'k' in shift and 'l' in shift:
+            circle_dakuten_chars[keys[0]] = char
+
+    for qwerty_key, char in circle_dakuten_chars.items():
+        romaji = KANA_TO_ROMAJI.get(char)
+        if romaji:
+            key = convert_key_to_layout(qwerty_key, use_colemak)
+            keycode = key_to_keycode(key)
+            manipulators.append({
+                "type": "basic",
+                "conditions": [{"type": "variable_if", "name": "shift_state", "value": 3}] + ja_conditions,
+                "from": {"key_code": keycode, "modifiers": {"optional": ["caps_lock"]}},
+                "to": romaji_to_keycodes(romaji) + [
+                    {"set_variable": {"name": "last_char", "value": 0}},
+                    {"set_variable": {"name": "shift_state", "value": 0}}
+                ]
+            })
+
+    # rules[の中身だけを返す (配列)
+    return [{
+        "description": f"{name} - 前置/後置シフト ({layout_type})",
+        "manipulators": manipulators
+    }]
 
 
 def main():
