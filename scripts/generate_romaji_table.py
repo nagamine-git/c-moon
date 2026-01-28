@@ -197,6 +197,9 @@ def generate_hazkey_ansi(data: dict, use_colemak: bool = False) -> str:
         if k in star_chars:
             lines.append(f"★{k}\t{star_chars[k]}")
 
+    # ★ + ゛キー → わ (゛キーはl(QWERTY)/i(Colemak))
+    lines.append(f"★{dakuten_key}\tわ")
+
     # 濁音 (後置シフト: かな + ゛)
     for base_kana, voiced_kana in DAKUTEN_MAP.items():
         lines.append(f"{base_kana}{dakuten_key}\t{voiced_kana}")
@@ -221,26 +224,13 @@ def generate_hazkey_ansi(data: dict, use_colemak: bool = False) -> str:
             if k in circle_dakuten_chars:
                 lines.append(f"☆゛{k}\t{circle_dakuten_chars[k]}")
 
-    # 拗音レイヤー (★ + ゛ + key)
-    if star_dakuten_chars:
-        for key in ['y', 'u', 'i', 'o', 'p', 'h', 'j', 'k', 'l', ';', 'n', 'm']:
-            k = convert_key_to_layout(key, use_colemak)
-            if k in star_dakuten_chars:
-                lines.append(f"★゛{k}\t{star_dakuten_chars[k]}")
-
     # ☆゛ でも みゃ/みゅ/みょ を打てるように (右手キーも追加)
+    # ★゛は わ と競合するため、☆゛のみで拗音シフトを実現
     if star_dakuten_chars:
         for key in ['y', 'u', 'i', 'o', 'p', 'h', 'j', 'k', 'l', ';', 'n', 'm']:
             k = convert_key_to_layout(key, use_colemak)
             if k in star_dakuten_chars:
                 lines.append(f"☆゛{k}\t{star_dakuten_chars[k]}")
-
-    # ★゛ でも左手側拗音を打てるように
-    if circle_dakuten_chars:
-        for key in ['q', 'w', 'e', 'r', 't', 'a', 's', 'd', 'f', 'g', 'z', 'x', 'c', 'v', 'b']:
-            k = convert_key_to_layout(key, use_colemak)
-            if k in circle_dakuten_chars:
-                lines.append(f"★゛{k}\t{circle_dakuten_chars[k]}")
 
     # シフト2回押し
     lines.append(f"{shift_circle_key}{shift_circle_key}\tも")  # ☆☆ → も
@@ -426,17 +416,17 @@ def main():
     # 出力ファイル (5種類のみ)
     outputs = []
 
-    # 1. Romaji QWERTY
-    romaji_qwerty = output_dir / f"{base_name}-romaji-qwerty.tsv"
-    with open(romaji_qwerty, 'w', encoding='utf-8') as f:
+    # 1. ANSI QWERTY
+    ansi_qwerty = output_dir / f"{base_name}-ansi-qwerty.tsv"
+    with open(ansi_qwerty, 'w', encoding='utf-8') as f:
         f.write(generate_hazkey_ansi(data, use_colemak=False))
-    outputs.append(romaji_qwerty)
+    outputs.append(ansi_qwerty)
 
-    # 2. Romaji Colemak
-    romaji_colemak = output_dir / f"{base_name}-romaji-colemak.tsv"
-    with open(romaji_colemak, 'w', encoding='utf-8') as f:
+    # 2. ANSI Colemak
+    ansi_colemak = output_dir / f"{base_name}-ansi-colemak.tsv"
+    with open(ansi_colemak, 'w', encoding='utf-8') as f:
         f.write(generate_hazkey_ansi(data, use_colemak=True))
-    outputs.append(romaji_colemak)
+    outputs.append(ansi_colemak)
 
     # 3. Karabiner QWERTY
     karabiner_qwerty = output_dir / f"{base_name}-karabiner-qwerty.json"
