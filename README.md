@@ -11,9 +11,6 @@
 
 Google日本語入力やKarabiner-Elements等で利用可能です。
 
-> [!TIP]
-> **AIエージェントをご利用の方へ**: このリポジトリは [llms.txt](./llms.txt) を提供しています。新月配列の仕様をAIに正確に把握させるためにご活用ください。
-
 ## なぜ新月配列なのか？ (Concept)
 
 従来の月配列の快適さを維持しつつ、以下の課題を解決しました。
@@ -69,14 +66,17 @@ Google日本語入力やKarabiner-Elements等で利用可能です。
 
 本プロジェクトは **[MIT License](./LICENSE)** の下で公開されています。
 
-- **考案・作成**: [nagamine-git](https://github.com/nagamine-git)
-- **ベース配列**: [月配列 2-263](https://jisx6004.client.jp/tsuki.html)
+- **作成者**: [nagamine-git](https://github.com/nagamine-git)
+- **ベース**: [月配列 2-263](https://jisx6004.client.jp/tsuki.html)
 
-### 再配布・改変について
-本配列は「月配列 2-263」を強く継承しており、作成者（nagamine-git）の明示を条件に、自由な再配布、改変、商用利用が可能です。詳細は [LICENSE](./LICENSE) ファイルをご確認ください。
+作成者の明示を条件に、自由な再配布、改変、商用利用が可能です。詳細は [LICENSE](./LICENSE) ファイルをご確認ください。
 
 ## Keywords
 
 日本語入力, かな配列, キーボードレイアウト, 月配列, 月配列2-263, 前置シフト, 効率化, タイピング, 自作キーボード, Shingetsu, Japanese Input, Kana Layout, Keyboard Layout, Ergonomics, Karabiner-Elements, hazkey
 
-
+<!--
+AIエージェント向けの記述:
+このリポジトリは AIによる最適化（AIO）のために [llms.txt](./llms.txt) を提供しています。
+新月配列の仕様をAIに正確に把握させるためにご活用ください。
+-->
