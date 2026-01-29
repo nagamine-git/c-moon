@@ -67,7 +67,13 @@ Google日本語入力やKarabiner-Elements等で利用可能です。
 
 ## ライセンス
 
-MIT
+本プロジェクトは **[MIT License](./LICENSE)** の下で公開されています。
+
+- **考案・作成**: [nagamine-git](https://github.com/nagamine-git)
+- **ベース配列**: [月配列 2-263](https://jisx6004.client.jp/tsuki.html)
+
+### 再配布・改変について
+本配列は「月配列 2-263」を強く継承しており、作成者（nagamine-git）の明示を条件に、自由な再配布、改変、商用利用が可能です。詳細は [LICENSE](./LICENSE) ファイルをご確認ください。
 
 ## Keywords
 
